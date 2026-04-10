@@ -21,6 +21,7 @@ export const LoginBody = zod.object({
   mobile: zod.string(),
   role: zod.enum(["super_admin", "admin", "collector", "public"]),
   name: zod.string(),
+  password: zod.string().optional(),
 });
 
 export const LoginResponse = zod.object({
@@ -161,6 +162,7 @@ export const ListUsersResponseItem = zod.object({
   mobile: zod.string(),
   role: zod.string(),
   isActive: zod.boolean(),
+  isSuspended: zod.boolean(),
   createdAt: zod.string(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
@@ -171,6 +173,7 @@ export const ListUsersResponse = zod.array(ListUsersResponseItem);
 export const CreateUserBody = zod.object({
   name: zod.string(),
   mobile: zod.string(),
+  password: zod.string().optional(),
   role: zod.enum(["super_admin", "admin", "collector", "public"]),
 });
 
@@ -185,6 +188,7 @@ export const UpdateUserBody = zod.object({
   name: zod.string().nullish(),
   role: zod.string().nullish(),
   isActive: zod.boolean().nullish(),
+  isSuspended: zod.boolean().nullish(),
 });
 
 export const UpdateUserResponse = zod.object({
@@ -193,6 +197,7 @@ export const UpdateUserResponse = zod.object({
   mobile: zod.string(),
   role: zod.string(),
   isActive: zod.boolean(),
+  isSuspended: zod.boolean(),
   createdAt: zod.string(),
 });
 

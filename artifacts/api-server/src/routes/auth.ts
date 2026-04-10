@@ -13,17 +13,33 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  const { mobile, role, name } = parsed.data;
+  const { mobile, role, name, password } = parsed.data;
 
   let user = await db.select().from(usersTable).where(eq(usersTable.mobile, mobile)).then(r => r[0]);
 
   if (!user) {
+    if (password) {
+      res.status(401).json({ error: "गलत मोबाइल नंबर या पासवर्ड" });
+      return;
+    }
     const [created] = await db.insert(usersTable).values({ name, mobile, role }).returning();
     user = created;
+  } else {
+    if (user.password) {
+      if (!password || password !== user.password) {
+        res.status(401).json({ error: "गलत पासवर्ड। कृपया सही पासवर्ड डालें।" });
+        return;
+      }
+    }
   }
 
   if (!user.isActive) {
-    res.status(401).json({ error: "Account is disabled" });
+    res.status(401).json({ error: "यह account निष्क्रिय कर दिया गया है।" });
+    return;
+  }
+
+  if (user.isSuspended) {
+    res.status(401).json({ error: "यह account निलंबित (Suspended) है। Super Admin से संपर्क करें।" });
     return;
   }
 
@@ -47,6 +63,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       mobile: user.mobile,
       role: user.role,
       isActive: user.isActive,
+      isSuspended: user.isSuspended,
       createdAt: user.createdAt.toISOString(),
     },
     token,
@@ -80,6 +97,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       mobile: user.mobile,
       role: user.role,
       isActive: user.isActive,
+      isSuspended: user.isSuspended,
       createdAt: user.createdAt.toISOString(),
     });
   } catch {

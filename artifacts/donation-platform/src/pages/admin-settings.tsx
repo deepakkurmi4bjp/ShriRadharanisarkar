@@ -1,21 +1,35 @@
 import { useState } from "react";
-import { useListUsers, getListUsersQueryKey, useUpdateUser, useCreateUser, useDeleteDonation, useListDonations, getListDonationsQueryKey } from "@workspace/api-client-react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  useListUsers, getListUsersQueryKey,
+  useUpdateUser, useCreateUser, useDeleteUser,
+  useDeleteDonation, useListDonations, getListDonationsQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Settings, ShieldCheck, Users, Database, Trash2, 
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Settings, ShieldCheck, Users, Database, Trash2,
   ToggleLeft, ToggleRight, AlertTriangle, CheckCircle2,
-  Lock, Globe, Palette, Info
+  Lock, Globe, Palette, Info, UserPlus, Eye, EyeOff,
+  PauseCircle, PlayCircle, UserX,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatRupee } from "@/lib/format";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const SITE_CONFIG = {
   name: "श्री मां नर्मदा भक्त परिवार",
@@ -30,14 +44,23 @@ const SITE_CONFIG = {
   ],
 };
 
+const createUserSchema = z.object({
+  name: z.string().min(2, "नाम कम से कम 2 अक्षर का होना चाहिए"),
+  mobile: z.string().min(10, "मोबाइल नंबर 10 अंक का होना चाहिए").max(15),
+  role: z.enum(["admin", "collector"]),
+  password: z.string().min(4, "पासवर्ड कम से कम 4 अक्षर का होना चाहिए"),
+});
+
+type CreateUserForm = z.infer<typeof createUserSchema>;
+
 export default function AdminSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [deletingDonationId, setDeletingDonationId] = useState<number | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { data: users, isLoading: usersLoading } = useListUsers({
-    query: { queryKey: getListUsersQueryKey() }
+    query: { queryKey: getListUsersQueryKey() },
   });
   const { data: donationsData, isLoading: donationsLoading } = useListDonations(
     { limit: 50 },
@@ -45,30 +68,94 @@ export default function AdminSettings() {
   );
 
   const updateUser = useUpdateUser();
+  const createUser = useCreateUser();
+  const deleteUser = useDeleteUser();
   const deleteDonation = useDeleteDonation();
 
   const isSuperAdmin = user?.role === "super_admin";
+
+  const form = useForm<CreateUserForm>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: { name: "", mobile: "", role: "collector", password: "" },
+  });
 
   if (!isSuperAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <Lock size={48} className="text-muted-foreground" />
-        <p className="text-muted-foreground text-lg">Only Super Admin can access this page.</p>
+        <p className="text-muted-foreground text-lg">केवल Super Admin ही यह पृष्ठ देख सकते हैं।</p>
       </div>
     );
   }
 
-  const handleToggleUser = (userId: number, isActive: boolean) => {
+  const handleCreateUser = (data: CreateUserForm) => {
+    createUser.mutate(
+      { data: { name: data.name, mobile: data.mobile, role: data.role, password: data.password } },
+      {
+        onSuccess: (newUser) => {
+          toast({
+            title: "✅ User बनाया गया",
+            description: `${newUser.name} (${newUser.role}) — Mobile: ${newUser.mobile}`,
+          });
+          queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+          form.reset();
+        },
+        onError: (err: any) => {
+          toast({
+            variant: "destructive",
+            title: "User बनाने में समस्या",
+            description: err?.error || "कृपया जानकारी जाँचें।",
+          });
+        },
+      }
+    );
+  };
+
+  const handleSuspend = (userId: number, isSuspended: boolean, userName: string) => {
+    updateUser.mutate(
+      { id: userId, data: { isSuspended: !isSuspended } },
+      {
+        onSuccess: () => {
+          toast({
+            title: isSuspended ? `✅ ${userName} को Unsuspend किया` : `⏸️ ${userName} को Suspend किया`,
+          });
+          queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "कार्य असफल रहा" });
+        },
+      }
+    );
+  };
+
+  const handleToggleActive = (userId: number, isActive: boolean, userName: string) => {
     updateUser.mutate(
       { id: userId, data: { isActive: !isActive } },
       {
         onSuccess: () => {
-          toast({ title: isActive ? "User deactivated" : "User activated" });
+          toast({
+            title: isActive ? `🔴 ${userName} निष्क्रिय किया` : `🟢 ${userName} सक्रिय किया`,
+          });
           queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
         },
         onError: () => {
-          toast({ variant: "destructive", title: "Failed to update user" });
-        }
+          toast({ variant: "destructive", title: "कार्य असफल रहा" });
+        },
+      }
+    );
+  };
+
+  const handleDeleteUser = (userId: number, userName: string) => {
+    deleteUser.mutate(
+      { id: userId },
+      {
+        onSuccess: () => {
+          toast({ title: `🗑️ ${userName} को स्थायी रूप से हटाया गया` });
+          queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "User हटाने में समस्या" });
+        },
       }
     );
   };
@@ -78,13 +165,12 @@ export default function AdminSettings() {
       { id },
       {
         onSuccess: () => {
-          toast({ title: "Donation deleted" });
+          toast({ title: "दान रिकॉर्ड हटाया गया" });
           queryClient.invalidateQueries({ queryKey: getListDonationsQueryKey({ limit: 50 }) });
-          setDeletingDonationId(null);
         },
         onError: () => {
-          toast({ variant: "destructive", title: "Failed to delete donation" });
-        }
+          toast({ variant: "destructive", title: "दान हटाने में समस्या" });
+        },
       }
     );
   };
@@ -96,23 +182,335 @@ export default function AdminSettings() {
     public: "bg-gray-100 text-gray-800 border-gray-200",
   };
 
+  const roleLabels: Record<string, string> = {
+    super_admin: "Super Admin",
+    admin: "Admin",
+    collector: "Collector",
+    public: "Public",
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col border-b pb-4">
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <Settings className="text-primary" /> Super Admin Settings
         </h1>
-        <p className="text-muted-foreground mt-1">Full website control — only accessible to Super Admin.</p>
+        <p className="text-muted-foreground mt-1">पूर्ण नियंत्रण — केवल Super Admin के लिए।</p>
       </div>
 
-      <Tabs defaultValue="site-info">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="site-info" className="gap-2"><Globe size={15} /> Site Info</TabsTrigger>
-          <TabsTrigger value="purposes" className="gap-2"><Palette size={15} /> Purposes</TabsTrigger>
-          <TabsTrigger value="users" className="gap-2"><Users size={15} /> All Users</TabsTrigger>
-          <TabsTrigger value="donations" className="gap-2"><Database size={15} /> Donations</TabsTrigger>
+      <Tabs defaultValue="create-user">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="create-user" className="gap-1.5"><UserPlus size={14} /> User बनाएं</TabsTrigger>
+          <TabsTrigger value="users" className="gap-1.5"><Users size={14} /> Users प्रबंधन</TabsTrigger>
+          <TabsTrigger value="site-info" className="gap-1.5"><Globe size={14} /> Site Info</TabsTrigger>
+          <TabsTrigger value="purposes" className="gap-1.5"><Palette size={14} /> Purposes</TabsTrigger>
+          <TabsTrigger value="donations" className="gap-1.5"><Database size={14} /> Donations</TabsTrigger>
         </TabsList>
 
+        {/* ===== CREATE USER TAB ===== */}
+        <TabsContent value="create-user" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-t-4 border-t-primary">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus size={18} className="text-primary" /> नया User बनाएं
+                </CardTitle>
+                <CardDescription>
+                  Admin या Collector का account बनाएं। वे मोबाइल नंबर और पासवर्ड से login करेंगे।
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleCreateUser)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>पूरा नाम</FormLabel>
+                          <FormControl>
+                            <Input placeholder="जैसे: राहुल शर्मा" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="mobile"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>मोबाइल नंबर (User ID)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="10 अंक का मोबाइल नंबर" type="tel" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>भूमिका (Role)</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="भूमिका चुनें" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="admin">🔵 Admin (प्रशासक)</SelectItem>
+                              <SelectItem value="collector">🟢 Collector (संग्रहकर्ता)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>पासवर्ड</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                placeholder="कम से कम 4 अक्षर"
+                                type={showPassword ? "text" : "password"}
+                                {...field}
+                              />
+                              <button
+                                type="button"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowPassword(!showPassword)}
+                              >
+                                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                              </button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={createUser.isPending}
+                    >
+                      {createUser.isPending ? "बनाया जा रहा है..." : "✅ User बनाएं"}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-amber-200 bg-amber-50/60">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-amber-800">
+                  <Info size={18} /> Login जानकारी
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-amber-900">
+                <div className="p-3 bg-white/70 border border-amber-200 rounded-lg space-y-1">
+                  <p className="font-semibold">User को यह जानकारी दें:</p>
+                  <p>• <strong>User ID:</strong> उनका मोबाइल नंबर</p>
+                  <p>• <strong>Password:</strong> आपके द्वारा सेट किया गया</p>
+                  <p>• <strong>URL:</strong> इस platform का login page</p>
+                </div>
+                <div className="p-3 bg-white/70 border border-amber-200 rounded-lg space-y-1">
+                  <p className="font-semibold">Login प्रक्रिया:</p>
+                  <p>1. Login page खोलें</p>
+                  <p>2. अपनी भूमिका चुनें (Admin/Collector)</p>
+                  <p>3. मोबाइल नंबर डालें</p>
+                  <p>4. पासवर्ड डालें</p>
+                  <p>5. "सुरक्षित Login करें" दबाएं</p>
+                </div>
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="font-semibold text-green-800">✅ Security Note:</p>
+                  <p className="text-green-700">बिना पासवर्ड के login नहीं हो सकता। पासवर्ड सुरक्षित रखें।</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ===== USERS MANAGEMENT TAB ===== */}
+        <TabsContent value="users" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users size={18} className="text-primary" /> सभी Users का प्रबंधन
+              </CardTitle>
+              <CardDescription>
+                किसी भी Admin/Collector को Suspend (अस्थायी) या Delete (स्थायी) करें।
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>नाम</TableHead>
+                    <TableHead>मोबाइल</TableHead>
+                    <TableHead>भूमिका</TableHead>
+                    <TableHead>स्थिति</TableHead>
+                    <TableHead>जोड़ा</TableHead>
+                    <TableHead className="text-right min-w-[200px]">कार्य</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {usersLoading
+                    ? Array(5).fill(0).map((_, i) => (
+                      <TableRow key={i}>
+                        {Array(7).fill(0).map((_, j) => (
+                          <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                    : (users || []).map((u) => {
+                      const isSelf = u.id === user?.id;
+                      const isSuperAdminUser = u.role === "super_admin";
+                      const suspended = (u as any).isSuspended === true;
+                      const canModify = !isSelf && !isSuperAdminUser;
+
+                      return (
+                        <TableRow key={u.id} className={suspended ? "opacity-60 bg-orange-50" : !u.isActive ? "opacity-50 bg-red-50" : ""}>
+                          <TableCell className="font-mono text-xs">{u.id}</TableCell>
+                          <TableCell className="font-semibold">{u.name} {isSelf && <span className="text-xs text-muted-foreground">(आप)</span>}</TableCell>
+                          <TableCell className="font-mono text-sm">{u.mobile}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs ${roleColors[u.role] || ""}`}>
+                              {roleLabels[u.role] || u.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                variant="outline"
+                                className={u.isActive
+                                  ? "bg-green-100 text-green-800 border-green-200 text-xs"
+                                  : "bg-red-100 text-red-800 border-red-200 text-xs"}
+                              >
+                                {u.isActive ? "✅ Active" : "🔴 Inactive"}
+                              </Badge>
+                              {suspended && (
+                                <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                                  ⏸️ Suspended
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">{formatDate(u.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            {isSuperAdminUser ? (
+                              <span className="text-xs text-muted-foreground italic">Protected</span>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1 flex-wrap">
+                                {/* SUSPEND/UNSUSPEND BUTTON */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={`gap-1 text-xs h-7 ${suspended
+                                    ? "border-green-500 text-green-700 hover:bg-green-50"
+                                    : "border-orange-500 text-orange-700 hover:bg-orange-50"
+                                    }`}
+                                  disabled={!canModify || updateUser.isPending}
+                                  onClick={() => handleSuspend(u.id, suspended, u.name)}
+                                  title={suspended ? "Unsuspend करें" : "Suspend करें"}
+                                >
+                                  {suspended
+                                    ? <><PlayCircle size={13} /> Unsuspend</>
+                                    : <><PauseCircle size={13} /> Suspend</>
+                                  }
+                                </Button>
+
+                                {/* ACTIVATE/DEACTIVATE BUTTON */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-1 text-xs h-7"
+                                  disabled={!canModify || updateUser.isPending}
+                                  onClick={() => handleToggleActive(u.id, u.isActive, u.name)}
+                                  title={u.isActive ? "Deactivate करें" : "Activate करें"}
+                                >
+                                  {u.isActive
+                                    ? <><ToggleRight size={14} className="text-green-600" /> Deactivate</>
+                                    : <><ToggleLeft size={14} /> Activate</>
+                                  }
+                                </Button>
+
+                                {/* DELETE BUTTON - with confirmation */}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="gap-1 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      disabled={!canModify || deleteUser.isPending}
+                                      title="स्थायी रूप से हटाएं"
+                                    >
+                                      <UserX size={13} /> Delete
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                                        <AlertTriangle size={20} /> User को स्थायी रूप से हटाएं?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        क्या आप <strong>{u.name}</strong> ({u.mobile}) को <strong>स्थायी रूप से हटाना</strong> चाहते हैं?
+                                        <br /><br />
+                                        यह कार्य <strong>वापस नहीं किया जा सकता</strong>। User का सारा डेटा हट जाएगा और यह audit log में दर्ज होगा।
+                                        <br /><br />
+                                        <span className="text-amber-700">💡 सुझाव: स्थायी हटाने की बजाय <strong>Suspend</strong> का उपयोग करें — इससे account अस्थायी रूप से बंद होता है।</span>
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>रद्द करें</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive hover:bg-destructive/90"
+                                        onClick={() => handleDeleteUser(u.id, u.name)}
+                                      >
+                                        हाँ, स्थायी रूप से हटाएं
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="flex items-start gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-orange-800">
+              <PauseCircle size={16} className="mt-0.5 flex-shrink-0" />
+              <div><strong>Suspend:</strong> अस्थायी। Login नहीं कर सकते। बाद में वापस कर सकते हैं।</div>
+            </div>
+            <div className="flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+              <ToggleLeft size={16} className="mt-0.5 flex-shrink-0" />
+              <div><strong>Deactivate:</strong> account बंद। Suspend से मिलता-जुलता।</div>
+            </div>
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800">
+              <Trash2 size={16} className="mt-0.5 flex-shrink-0" />
+              <div><strong>Delete:</strong> स्थायी। User हमेशा के लिए हट जाएगा।</div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ===== SITE INFO TAB ===== */}
         <TabsContent value="site-info" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-t-4 border-t-primary">
@@ -122,18 +520,16 @@ export default function AdminSettings() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  <div className="flex flex-col gap-1 p-3 bg-muted/40 rounded-lg">
-                    <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Organization Name</span>
-                    <span className="font-bold text-lg text-primary">{SITE_CONFIG.name}</span>
-                  </div>
-                  <div className="flex flex-col gap-1 p-3 bg-muted/40 rounded-lg">
-                    <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Platform Subtitle</span>
-                    <span className="font-medium">{SITE_CONFIG.subtitle}</span>
-                  </div>
-                  <div className="flex flex-col gap-1 p-3 bg-muted/40 rounded-lg">
-                    <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Official Tagline</span>
-                    <span className="font-medium">{SITE_CONFIG.tagline}</span>
-                  </div>
+                  {[
+                    { label: "Organization Name", value: SITE_CONFIG.name },
+                    { label: "Platform Subtitle", value: SITE_CONFIG.subtitle },
+                    { label: "Official Tagline", value: SITE_CONFIG.tagline },
+                  ].map((item) => (
+                    <div key={item.label} className="flex flex-col gap-1 p-3 bg-muted/40 rounded-lg">
+                      <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">{item.label}</span>
+                      <span className="font-bold text-primary">{item.value}</span>
+                    </div>
+                  ))}
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
                   <CheckCircle2 size={16} />
@@ -149,50 +545,26 @@ export default function AdminSettings() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { label: "SHA-256 HMAC Hash", status: "Active", ok: true },
-                  { label: "QR Tamper Detection", status: "Active", ok: true },
-                  { label: "Role-Based Access Control", status: "Active", ok: true },
-                  { label: "Audit Log Tracking", status: "Active", ok: true },
-                  { label: "IP Address Logging", status: "Active", ok: true },
+                  { label: "SHA-256 HMAC Hash", ok: true },
+                  { label: "QR Tamper Detection", ok: true },
+                  { label: "Role-Based Access Control", ok: true },
+                  { label: "Audit Log Tracking", ok: true },
+                  { label: "Password Protection", ok: true },
+                  { label: "Suspend/Delete Controls", ok: true },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
                     <span className="text-sm font-medium">{item.label}</span>
-                    <Badge className={item.ok ? "bg-green-100 text-green-800 border-green-200" : "bg-red-100 text-red-800"} variant="outline">
-                      {item.ok ? <CheckCircle2 size={12} className="mr-1" /> : <AlertTriangle size={12} className="mr-1" />}
-                      {item.status}
+                    <Badge className="bg-green-100 text-green-800 border-green-200" variant="outline">
+                      <CheckCircle2 size={12} className="mr-1" /> Active
                     </Badge>
                   </div>
                 ))}
               </CardContent>
             </Card>
-
-            <Card className="md:col-span-2 border border-amber-200 bg-amber-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-amber-800"><Info size={18} /> Super Admin Capabilities</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-amber-900">
-                  {[
-                    "View all donations and users",
-                    "Enable/Disable any user account",
-                    "Delete any donation record",
-                    "Access full audit logs",
-                    "Manage all roles and permissions",
-                    "View security and system status",
-                    "Access all collector and admin panels",
-                    "Monitor fraud and tampered receipts",
-                  ].map((cap) => (
-                    <li key={cap} className="flex items-center gap-2">
-                      <CheckCircle2 size={14} className="text-amber-700 flex-shrink-0" />
-                      {cap}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
 
+        {/* ===== PURPOSES TAB ===== */}
         <TabsContent value="purposes" className="mt-6">
           <Card>
             <CardHeader>
@@ -223,144 +595,79 @@ export default function AdminSettings() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="users" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Users size={18} className="text-primary" /> All System Users</CardTitle>
-              <CardDescription>Enable or disable user accounts. Super Admin has full control.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Mobile</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {usersLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <TableRow key={i}>
-                        {Array(7).fill(0).map((_, j) => (
-                          <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (users || []).map((u) => (
-                    <TableRow key={u.id} className={!u.isActive ? "opacity-50" : ""}>
-                      <TableCell className="font-mono text-xs">{u.id}</TableCell>
-                      <TableCell className="font-semibold">{u.name}</TableCell>
-                      <TableCell className="font-mono">{u.mobile}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`text-xs ${roleColors[u.role] || ""}`}>
-                          {u.role.replace("_", " ").toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={u.isActive ? "bg-green-100 text-green-800 border-green-200" : "bg-red-100 text-red-800 border-red-200"}>
-                          {u.isActive ? "Active" : "Disabled"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{formatDate(u.createdAt)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1 text-xs"
-                          disabled={u.role === "super_admin" || updateUser.isPending}
-                          onClick={() => handleToggleUser(u.id, u.isActive)}
-                          data-testid={`button-toggle-user-${u.id}`}
-                        >
-                          {u.isActive ? <ToggleRight size={16} className="text-green-600" /> : <ToggleLeft size={16} className="text-muted-foreground" />}
-                          {u.isActive ? "Disable" : "Enable"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
+        {/* ===== DONATIONS TAB ===== */}
         <TabsContent value="donations" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Database size={18} className="text-primary" /> All Donations</CardTitle>
-              <CardDescription>Super Admin can delete any donation record. This action is irreversible and audited.</CardDescription>
+              <CardDescription>Super Admin किसी भी दान record को स्थायी रूप से हटा सकते हैं। यह audit log में दर्ज होगा।</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
                     <TableHead>Receipt ID</TableHead>
-                    <TableHead>Donor</TableHead>
-                    <TableHead>Mobile</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Purpose</TableHead>
+                    <TableHead>दाता</TableHead>
+                    <TableHead>मोबाइल</TableHead>
+                    <TableHead>राशि</TableHead>
+                    <TableHead>उद्देश्य</TableHead>
                     <TableHead>Collector</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Delete</TableHead>
+                    <TableHead>दिनांक</TableHead>
+                    <TableHead className="text-right">हटाएं</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {donationsLoading ? (
-                    Array(5).fill(0).map((_, i) => (
+                  {donationsLoading
+                    ? Array(5).fill(0).map((_, i) => (
                       <TableRow key={i}>
                         {Array(8).fill(0).map((_, j) => (
                           <TableCell key={j}><Skeleton className="h-4 w-16" /></TableCell>
                         ))}
                       </TableRow>
                     ))
-                  ) : (donationsData?.donations || []).map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell className="font-mono text-xs">{d.donationId}</TableCell>
-                      <TableCell className="font-semibold">{d.name}</TableCell>
-                      <TableCell className="font-mono text-sm">{d.mobile}</TableCell>
-                      <TableCell className="font-bold text-primary">{formatRupee(d.amount)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{d.purpose || "—"}</TableCell>
-                      <TableCell className="text-xs">{d.collectorName || "—"}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{formatDate(d.createdAt)}</TableCell>
-                      <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              data-testid={`button-delete-donation-${d.id}`}
-                            >
-                              <Trash2 size={15} />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                                <AlertTriangle size={20} /> Confirm Deletion
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete donation <strong>{d.donationId}</strong> of <strong>{formatRupee(d.amount)}</strong> from <strong>{d.name}</strong>? This is permanent and will be logged in the audit trail.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive hover:bg-destructive/90"
-                                onClick={() => handleDeleteDonation(d.id)}
+                    : (donationsData?.donations || []).map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="font-mono text-xs">{d.donationId}</TableCell>
+                        <TableCell className="font-semibold">{d.name}</TableCell>
+                        <TableCell className="font-mono text-sm">{d.mobile}</TableCell>
+                        <TableCell className="font-bold text-primary">{formatRupee(d.amount)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{d.purpose || "—"}</TableCell>
+                        <TableCell className="text-xs">{d.collectorName || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{formatDate(d.createdAt)}</TableCell>
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
-                                Delete Permanently
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                                <Trash2 size={15} />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                                  <AlertTriangle size={20} /> दान record हटाएं?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  क्या आप <strong>{d.donationId}</strong> — <strong>{formatRupee(d.amount)}</strong> ({d.name}) को स्थायी रूप से हटाना चाहते हैं? यह कार्य वापस नहीं होगा।
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>रद्द करें</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive hover:bg-destructive/90"
+                                  onClick={() => handleDeleteDonation(d.id)}
+                                >
+                                  हाँ, हटाएं
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </CardContent>

@@ -6,8 +6,10 @@ export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   mobile: text("mobile").notNull().unique(),
+  password: text("password"),
   role: text("role").notNull().default("public"),
   isActive: boolean("is_active").notNull().default(true),
+  isSuspended: boolean("is_suspended").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
