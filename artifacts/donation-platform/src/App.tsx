@@ -11,6 +11,7 @@ import CollectorPanel from "@/pages/collector";
 import AdminPanel from "@/pages/admin";
 import AdminUsers from "@/pages/admin-users";
 import AdminAudit from "@/pages/admin-audit";
+import AdminSettings from "@/pages/admin-settings";
 import VerifyDonation from "@/pages/verify";
 
 const queryClient = new QueryClient({
@@ -78,6 +79,14 @@ function Router() {
         {() => (
           <Layout>
             <ProtectedRoute component={AdminAudit} allowedRoles={['super_admin', 'admin']} />
+          </Layout>
+        )}
+      </Route>
+
+      <Route path="/admin/settings">
+        {() => (
+          <Layout>
+            <ProtectedRoute component={AdminSettings} allowedRoles={['super_admin']} />
           </Layout>
         )}
       </Route>

@@ -11,7 +11,7 @@ import {
   FileText, 
   ShieldCheck,
   Menu,
-  X
+  Settings
 } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -35,6 +35,7 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isSuperAdmin = user?.role === "super_admin";
   const isCollector = user?.role === "collector";
 
   const NavLinks = () => (
@@ -67,13 +68,20 @@ export function Layout({ children }: LayoutProps) {
           </Link>
         </>
       )}
+
+      {isAuthenticated && isSuperAdmin && (
+        <Link href="/admin/settings" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/admin/settings" ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted"}`}>
+          <Settings size={18} />
+          <span>Site Settings</span>
+        </Link>
+      )}
     </>
   );
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-40 w-full border-b bg-card shadow-sm">
-        <div className="container flex h-16 items-center justify-between px-4 sm:px-6 md:px-8">
+        <div className="container flex h-auto min-h-16 items-center justify-between px-4 sm:px-6 md:px-8 py-2 gap-3">
           <div className="flex items-center gap-2">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -83,11 +91,14 @@ export function Layout({ children }: LayoutProps) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[240px] sm:w-[300px]">
-                <div className="flex items-center gap-2 font-bold text-lg mb-6">
-                  <div className="bg-primary text-primary-foreground p-1.5 rounded-md">
-                    <ShieldCheck size={20} />
+                <div className="flex flex-col gap-1 mb-6">
+                  <div className="flex items-center gap-2 font-bold text-lg">
+                    <div className="bg-primary text-primary-foreground p-1.5 rounded-md">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <span className="text-primary font-bold">श्री मां नर्मदा</span>
                   </div>
-                  <span>Trust Ops</span>
+                  <p className="text-xs text-muted-foreground pl-10">भक्त परिवार</p>
                 </div>
                 <nav className="flex flex-col gap-2">
                   <NavLinks />
@@ -95,11 +106,14 @@ export function Layout({ children }: LayoutProps) {
               </SheetContent>
             </Sheet>
             
-            <Link href="/" className="flex items-center gap-2 font-bold text-lg md:text-xl tracking-tight">
+            <Link href="/" className="flex items-center gap-2 tracking-tight">
               <div className="bg-primary text-primary-foreground p-1.5 rounded-md hidden sm:block">
                 <ShieldCheck size={20} />
               </div>
-              <span>Trust Operations</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-base md:text-lg leading-tight text-primary">श्री मां नर्मदा भक्त परिवार</span>
+                <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">दान प्रबंधन प्रणाली — Official Platform</span>
+              </div>
             </Link>
           </div>
 
@@ -132,10 +146,11 @@ export function Layout({ children }: LayoutProps) {
         {children}
       </main>
       
-      <footer className="border-t py-6 bg-muted/20">
-        <div className="container text-center text-sm text-muted-foreground">
-          <p>Enterprise Donation Management Platform &copy; {new Date().getFullYear()}</p>
-          <p className="text-xs mt-1">Every transaction is securely audited and tracked.</p>
+      <footer className="border-t py-6 bg-primary/5">
+        <div className="container text-center">
+          <p className="font-bold text-primary text-base">श्री मां नर्मदा भक्त परिवार</p>
+          <p className="text-sm text-muted-foreground mt-1">आधिकारिक दान प्रबंधन प्रणाली &copy; {new Date().getFullYear()}</p>
+          <p className="text-xs text-muted-foreground mt-1">प्रत्येक लेनदेन सुरक्षित रूप से ऑडिट और ट्रैक किया जाता है।</p>
         </div>
       </footer>
     </div>

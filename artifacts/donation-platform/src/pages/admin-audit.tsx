@@ -17,6 +17,8 @@ export default function AdminAudit() {
     { query: { queryKey: getListAuditLogsQueryKey({ page, limit }) } }
   );
 
+  const logs = Array.isArray(logsData) ? logsData : [];
+
   const getActionColor = (action: string) => {
     if (action.includes('CREATE') || action.includes('LOGIN')) return 'bg-green-100 text-green-800 border-green-200';
     if (action.includes('DELETE') || action.includes('FAIL')) return 'bg-red-100 text-red-800 border-red-200';
@@ -64,12 +66,12 @@ export default function AdminAudit() {
                     <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : logsData?.logs?.length === 0 ? (
+              ) : logs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">No audit logs available.</TableCell>
                 </TableRow>
               ) : (
-                logsData?.logs.map((log) => (
+                logs.map((log) => (
                   <TableRow key={log.id} className="hover:bg-muted/30 text-sm font-mono">
                     <TableCell className="text-muted-foreground">{formatDate(log.createdAt)}</TableCell>
                     <TableCell className="font-semibold">{log.userName || 'SYSTEM'}</TableCell>
@@ -90,7 +92,7 @@ export default function AdminAudit() {
           
           <div className="p-4 border-t flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing page {logsData?.page || 1}
+              Page {page} &mdash; {logs.length} entries
             </p>
             <div className="flex gap-2">
               <Button 
@@ -105,7 +107,7 @@ export default function AdminAudit() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setPage(p => p + 1)}
-                disabled={!logsData?.logs || logsData.logs.length < limit || isLoading}
+                disabled={logs.length < limit || isLoading}
               >
                 Next <ChevronRight size={16} className="ml-1" />
               </Button>
