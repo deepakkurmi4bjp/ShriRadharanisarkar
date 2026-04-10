@@ -1,22 +1,33 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Enterprise Donation Management Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: donations
+    description: Donation management
+  - name: users
+    description: User management
+  - name: verify
+    description: QR verification
+  - name: analytics
+    description: Analytics and reporting
+  - name: audit
+    description: Audit logs
+  - name: auth
+    description: Authentication
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,364 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with mobile and role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user session
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /donations:
+    get:
+      operationId: listDonations
+      tags: [donations]
+      summary: List all donations
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: collector_id
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of donations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationListResponse"
+
+    post:
+      operationId: createDonation
+      tags: [donations]
+      summary: Create a new donation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDonationBody"
+      responses:
+        "201":
+          description: Donation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Donation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /donations/{id}:
+    get:
+      operationId: getDonation
+      tags: [donations]
+      summary: Get donation by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Donation details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Donation"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteDonation
+      tags: [donations]
+      summary: Delete a donation (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /donations/{id}/verify:
+    get:
+      operationId: verifyDonation
+      tags: [verify]
+      summary: Verify donation QR code hash
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Get overall donation summary
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /analytics/daily:
+    get:
+      operationId: getDailyAnalytics
+      tags: [analytics]
+      summary: Get daily donation totals (last 30 days)
+      responses:
+        "200":
+          description: Daily analytics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyTotal"
+
+  /analytics/top-collectors:
+    get:
+      operationId: getTopCollectors
+      tags: [analytics]
+      summary: Get top collectors by total amount
+      responses:
+        "200":
+          description: Top collectors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollectorStats"
+
+  /analytics/amount-distribution:
+    get:
+      operationId: getAmountDistribution
+      tags: [analytics]
+      summary: Get donation amount distribution by ranges
+      responses:
+        "200":
+          description: Amount distribution
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AmountBucket"
+
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit]
+      summary: List audit logs (Admin only)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +403,278 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    LoginBody:
+      type: object
+      properties:
+        mobile:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, admin, collector, public]
+        name:
+          type: string
+      required:
+        - mobile
+        - role
+        - name
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required:
+        - user
+        - token
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        mobile:
+          type: string
+        role:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - mobile
+        - role
+        - isActive
+        - createdAt
+
+    CreateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        mobile:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, admin, collector, public]
+      required:
+        - name
+        - mobile
+        - role
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        role:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+
+    Donation:
+      type: object
+      properties:
+        id:
+          type: integer
+        donationId:
+          type: string
+        name:
+          type: string
+        mobile:
+          type: string
+        amount:
+          type: number
+        purpose:
+          type: ["string", "null"]
+        collectorId:
+          type: ["integer", "null"]
+        collectorName:
+          type: ["string", "null"]
+        hash:
+          type: string
+        isVerified:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - donationId
+        - name
+        - mobile
+        - amount
+        - purpose
+        - collectorId
+        - collectorName
+        - hash
+        - isVerified
+        - createdAt
+
+    CreateDonationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        mobile:
+          type: string
+        amount:
+          type: number
+        purpose:
+          type: ["string", "null"]
+        collectorId:
+          type: ["integer", "null"]
+      required:
+        - name
+        - mobile
+        - amount
+
+    DonationListResponse:
+      type: object
+      properties:
+        donations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Donation"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - donations
+        - total
+        - page
+        - limit
+
+    VerificationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        donation:
+          $ref: "#/components/schemas/Donation"
+        message:
+          type: string
+      required:
+        - valid
+        - donation
+        - message
+
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalAmount:
+          type: number
+        totalDonations:
+          type: integer
+        totalCollectors:
+          type: integer
+        totalDonors:
+          type: integer
+        todayAmount:
+          type: number
+        todayDonations:
+          type: integer
+        avgDonation:
+          type: number
+      required:
+        - totalAmount
+        - totalDonations
+        - totalCollectors
+        - totalDonors
+        - todayAmount
+        - todayDonations
+        - avgDonation
+
+    DailyTotal:
+      type: object
+      properties:
+        date:
+          type: string
+        amount:
+          type: number
+        count:
+          type: integer
+      required:
+        - date
+        - amount
+        - count
+
+    CollectorStats:
+      type: object
+      properties:
+        collectorId:
+          type: integer
+        collectorName:
+          type: string
+        totalAmount:
+          type: number
+        donationCount:
+          type: integer
+      required:
+        - collectorId
+        - collectorName
+        - totalAmount
+        - donationCount
+
+    AmountBucket:
+      type: object
+      properties:
+        range:
+          type: string
+        count:
+          type: integer
+        amount:
+          type: number
+      required:
+        - range
+        - count
+        - amount
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+        action:
+          type: string
+        details:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - userName
+        - action
+        - details
+        - ipAddress
+        - createdAt

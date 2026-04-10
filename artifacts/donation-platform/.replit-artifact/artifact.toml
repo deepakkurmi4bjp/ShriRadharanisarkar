@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Donation Management Platform"
+version = "1.0.0"
+id = "artifacts/donation-platform"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18946
+
+[services.development]
+run = "pnpm --filter @workspace/donation-platform run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/donation-platform", "run", "build" ]
+publicDir = "artifacts/donation-platform/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18946"
+BASE_PATH = "/"
