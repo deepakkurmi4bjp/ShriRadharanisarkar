@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { CreateUserBody, UpdateUserBody, UpdateUserParams, DeleteUserParams } from "@workspace/api-zod";
 import { createAuditLog } from "../lib/audit";
 
@@ -16,6 +16,7 @@ router.get("/users", async (_req, res): Promise<void> => {
       role: u.role,
       isActive: u.isActive,
       isSuspended: u.isSuspended,
+      photoUrl: u.photoUrl ?? null,
       createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
     }))
   );
@@ -39,11 +40,12 @@ router.post("/users", async (req, res): Promise<void> => {
     mobile: parsed.data.mobile,
     role: parsed.data.role,
     password: parsed.data.password ?? null,
+    photoUrl: (parsed.data as any).photoUrl ?? null,
   }).returning();
 
   await createAuditLog({
     action: "USER_CREATED",
-    details: `User ${user.name} created with role ${user.role} by Super Admin`,
+    details: `User ${user.name} (${user.role}) created by Super Admin`,
     ipAddress: req.ip,
   });
 
@@ -54,6 +56,7 @@ router.post("/users", async (req, res): Promise<void> => {
     role: user.role,
     isActive: user.isActive,
     isSuspended: user.isSuspended,
+    photoUrl: user.photoUrl ?? null,
     createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
   });
 });
@@ -71,12 +74,13 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const updateData: Partial<{ name: string; role: string; isActive: boolean; isSuspended: boolean; password: string }> = {};
+  const updateData: Record<string, any> = {};
   if (parsed.data.name != null) updateData.name = parsed.data.name;
   if (parsed.data.role != null) updateData.role = parsed.data.role;
   if (parsed.data.isActive != null) updateData.isActive = parsed.data.isActive;
   if (parsed.data.isSuspended != null) updateData.isSuspended = parsed.data.isSuspended;
   if (parsed.data.password != null) updateData.password = parsed.data.password;
+  if ((parsed.data as any).photoUrl !== undefined) updateData.photoUrl = (parsed.data as any).photoUrl;
 
   const [user] = await db
     .update(usersTable)
@@ -97,7 +101,7 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
 
   await createAuditLog({
     action,
-    details: `User ${user.name} ${action.toLowerCase().replace("_", " ")}`,
+    details: `User ${user.name} — ${action.toLowerCase().replace(/_/g, " ")}`,
     ipAddress: req.ip,
   });
 
@@ -108,6 +112,7 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
     role: user.role,
     isActive: user.isActive,
     isSuspended: user.isSuspended,
+    photoUrl: user.photoUrl ?? null,
     createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
   });
 });
@@ -119,16 +124,26 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db.delete(usersTable).where(eq(usersTable.id, params.data.id)).returning();
-
-  if (!user) {
+  const targetUser = await db.select().from(usersTable).where(eq(usersTable.id, params.data.id)).then(r => r[0]);
+  if (!targetUser) {
     res.status(404).json({ error: "User not found" });
     return;
   }
 
+  if (targetUser.role === "super_admin") {
+    res.status(403).json({ error: "Super Admin को delete नहीं किया जा सकता।" });
+    return;
+  }
+
+  await db.execute(
+    sql`UPDATE donations SET collector_id = NULL WHERE collector_id = ${params.data.id}`
+  );
+
+  await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
+
   await createAuditLog({
     action: "USER_DELETED",
-    details: `User ${user.name} permanently deleted by Super Admin`,
+    details: `User ${targetUser.name} (${targetUser.role}) permanently deleted by Super Admin`,
     ipAddress: req.ip,
   });
 

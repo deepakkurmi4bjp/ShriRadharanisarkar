@@ -19,7 +19,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Textarea } from "@/components/ui/textarea";
 
 const PRESET_PURPOSES = [
-  "नर्मदा जन्मोत्सव चुनरी यात्रा",
+  "श्री मां नर्मदा जन्मोत्सव चुनरी यात्रा",
   "श्री राम जन्मोत्सव शोभायात्रा",
   "श्री हनुमान जन्मोत्सव शोभायात्रा",
   "धर्म रक्षा निधि संग्रहण",
