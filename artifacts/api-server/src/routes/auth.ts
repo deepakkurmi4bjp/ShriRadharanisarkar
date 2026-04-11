@@ -1,58 +1,117 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { LoginBody } from "@workspace/api-zod";
 import { createAuditLog } from "../lib/audit";
+import { checkRateLimit, recordFailedAttempt, clearAttempts } from "../lib/rate-limiter";
 
 const router: IRouter = Router();
 
+function getClientKey(req: any): string {
+  const ip = req.ip || req.connection?.remoteAddress || "unknown";
+  const mobile = req.body?.mobile || "unknown";
+  return `${ip}:${mobile}`;
+}
+
+function minutesLeft(ms: number): string {
+  return Math.ceil(ms / 60000).toString();
+}
+
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const parsed = LoginBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const { mobile, password } = req.body || {};
+
+  if (!mobile || typeof mobile !== "string" || mobile.length < 10) {
+    res.status(400).json({ error: "सही मोबाइल नंबर डालें।" });
+    return;
+  }
+  if (!password || typeof password !== "string" || password.length < 1) {
+    res.status(400).json({ error: "पासवर्ड आवश्यक है।" });
+    return;
+  }
+  const clientKey = getClientKey(req);
+
+  const rateCheck = checkRateLimit(clientKey);
+  if (!rateCheck.allowed) {
+    const mins = minutesLeft(rateCheck.remainingMs!);
+    await createAuditLog({
+      action: "LOGIN_BLOCKED",
+      details: `Rate limit exceeded for mobile ${mobile}. Locked for ${mins} more minute(s).`,
+      ipAddress: req.ip,
+    });
+    res.status(429).json({
+      error: `बहुत अधिक गलत प्रयास। ${mins} मिनट बाद दोबारा कोशिश करें।`,
+    });
     return;
   }
 
-  const { mobile, role, name, password } = parsed.data;
-
-  let user = await db.select().from(usersTable).where(eq(usersTable.mobile, mobile)).then(r => r[0]);
+  const user = await db.select().from(usersTable).where(eq(usersTable.mobile, mobile)).then(r => r[0]);
 
   if (!user) {
-    if (password) {
-      res.status(401).json({ error: "गलत मोबाइल नंबर या पासवर्ड" });
-      return;
-    }
-    const [created] = await db.insert(usersTable).values({ name, mobile, role }).returning();
-    user = created;
-  } else {
-    if (user.password) {
-      if (!password || password !== user.password) {
-        res.status(401).json({ error: "गलत पासवर्ड। कृपया सही पासवर्ड डालें।" });
-        return;
-      }
-    }
+    const result = recordFailedAttempt(clientKey);
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      details: `Login attempt with unregistered mobile: ${mobile}`,
+      ipAddress: req.ip,
+    });
+    const attemptsMsg = result.locked
+      ? "15 मिनट के लिए account block हो गया।"
+      : `${result.attemptsLeft} प्रयास शेष।`;
+    res.status(401).json({ error: `गलत मोबाइल नंबर या पासवर्ड। ${attemptsMsg}` });
+    return;
+  }
+
+  if (!user.password) {
+    const result = recordFailedAttempt(clientKey);
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      details: `User ${user.name} has no password set, access denied.`,
+      ipAddress: req.ip,
+    });
+    res.status(401).json({ error: "इस account का पासवर्ड सेट नहीं है। Super Admin से संपर्क करें।" });
+    return;
+  }
+
+  if (password !== user.password) {
+    const result = recordFailedAttempt(clientKey);
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      details: `Wrong password attempt for user ${user.name} (${user.mobile})`,
+      ipAddress: req.ip,
+    });
+    const attemptsMsg = result.locked
+      ? " 15 मिनट के लिए account block हो गया।"
+      : ` ${result.attemptsLeft} प्रयास शेष।`;
+    res.status(401).json({ error: `गलत पासवर्ड।${attemptsMsg}` });
+    return;
   }
 
   if (!user.isActive) {
-    res.status(401).json({ error: "यह account निष्क्रिय कर दिया गया है।" });
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      details: `Inactive account login attempt: ${user.name} (${user.mobile})`,
+      ipAddress: req.ip,
+    });
+    res.status(401).json({ error: "यह account निष्क्रिय कर दिया गया है। Super Admin से संपर्क करें।" });
     return;
   }
 
   if (user.isSuspended) {
+    await createAuditLog({
+      action: "LOGIN_FAILED",
+      details: `Suspended account login attempt: ${user.name} (${user.mobile})`,
+      ipAddress: req.ip,
+    });
     res.status(401).json({ error: "यह account निलंबित (Suspended) है। Super Admin से संपर्क करें।" });
     return;
   }
 
-  const token = Buffer.from(JSON.stringify({ userId: user.id, role: user.role })).toString("base64");
+  clearAttempts(clientKey);
 
-  req.session = req.session || {};
-  (req as any).session.userId = user.id;
-  (req as any).session.role = user.role;
+  const token = Buffer.from(JSON.stringify({ userId: user.id, role: user.role })).toString("base64");
 
   await createAuditLog({
     userId: user.id,
     action: "LOGIN",
-    details: `User ${user.name} logged in as ${user.role}`,
+    details: `${user.name} (${user.role}) successfully logged in`,
     ipAddress: req.ip,
   });
 
@@ -86,8 +145,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     const payload = JSON.parse(Buffer.from(token, "base64").toString("utf-8")) as { userId: number; role: string };
     const user = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).then(r => r[0]);
 
-    if (!user) {
-      res.status(401).json({ error: "User not found" });
+    if (!user || !user.isActive || user.isSuspended) {
+      res.status(401).json({ error: "Access denied" });
       return;
     }
 

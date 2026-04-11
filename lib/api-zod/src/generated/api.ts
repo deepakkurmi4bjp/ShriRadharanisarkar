@@ -189,6 +189,7 @@ export const UpdateUserBody = zod.object({
   role: zod.string().nullish(),
   isActive: zod.boolean().nullish(),
   isSuspended: zod.boolean().nullish(),
+  password: zod.string().nullish(),
 });
 
 export const UpdateUserResponse = zod.object({

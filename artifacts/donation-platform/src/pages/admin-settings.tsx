@@ -22,8 +22,9 @@ import {
   Settings, ShieldCheck, Users, Database, Trash2,
   ToggleLeft, ToggleRight, AlertTriangle, CheckCircle2,
   Lock, Globe, Palette, Info, UserPlus, Eye, EyeOff,
-  PauseCircle, PlayCircle, UserX,
+  PauseCircle, PlayCircle, UserX, KeyRound,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatRupee } from "@/lib/format";
 import {
@@ -58,6 +59,9 @@ export default function AdminSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
+  const [resetTarget, setResetTarget] = useState<{ id: number; name: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPwd, setShowNewPwd] = useState(false);
 
   const { data: users, isLoading: usersLoading } = useListUsers({
     query: { queryKey: getListUsersQueryKey() },
@@ -155,6 +159,28 @@ export default function AdminSettings() {
         },
         onError: () => {
           toast({ variant: "destructive", title: "User हटाने में समस्या" });
+        },
+      }
+    );
+  };
+
+  const handleResetPassword = () => {
+    if (!resetTarget || newPassword.length < 4) {
+      toast({ variant: "destructive", title: "पासवर्ड कम से कम 4 अक्षर का होना चाहिए" });
+      return;
+    }
+    updateUser.mutate(
+      { id: resetTarget.id, data: { password: newPassword } },
+      {
+        onSuccess: () => {
+          toast({ title: `🔑 ${resetTarget.name} का पासवर्ड बदल दिया गया` });
+          queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+          setResetTarget(null);
+          setNewPassword("");
+          setShowNewPwd(false);
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "पासवर्ड बदलने में समस्या" });
         },
       }
     );
@@ -446,6 +472,18 @@ export default function AdminSettings() {
                                   }
                                 </Button>
 
+                                {/* RESET PASSWORD BUTTON */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1 text-xs h-7 border-blue-400 text-blue-700 hover:bg-blue-50"
+                                  disabled={!canModify || updateUser.isPending}
+                                  onClick={() => { setResetTarget({ id: u.id, name: u.name }); setNewPassword(""); }}
+                                  title="पासवर्ड बदलें"
+                                >
+                                  <KeyRound size={13} /> Password
+                                </Button>
+
                                 {/* DELETE BUTTON - with confirmation */}
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
@@ -674,6 +712,55 @@ export default function AdminSettings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* PASSWORD RESET DIALOG */}
+      <Dialog open={!!resetTarget} onOpenChange={(open) => { if (!open) { setResetTarget(null); setNewPassword(""); setShowNewPwd(false); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-700">
+              <KeyRound size={18} /> पासवर्ड बदलें
+            </DialogTitle>
+            <DialogDescription>
+              <strong>{resetTarget?.name}</strong> के लिए नया पासवर्ड सेट करें। यह user को बताना न भूलें।
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="relative">
+              <Input
+                placeholder="नया पासवर्ड (कम से कम 4 अक्षर)"
+                type={showNewPwd ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="pr-10 h-11"
+                autoFocus
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowNewPwd(!showNewPwd)}
+              >
+                {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {newPassword.length > 0 && newPassword.length < 4 && (
+              <p className="text-xs text-red-600">पासवर्ड कम से कम 4 अक्षर का होना चाहिए।</p>
+            )}
+            {newPassword.length >= 4 && (
+              <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 size={12} /> पासवर्ड सही है।</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetTarget(null); setNewPassword(""); }}>रद्द करें</Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={newPassword.length < 4 || updateUser.isPending}
+              onClick={handleResetPassword}
+            >
+              {updateUser.isPending ? "बदला जा रहा है..." : "🔑 पासवर्ड बदलें"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

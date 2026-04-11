@@ -71,11 +71,12 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const updateData: Partial<{ name: string; role: string; isActive: boolean; isSuspended: boolean }> = {};
+  const updateData: Partial<{ name: string; role: string; isActive: boolean; isSuspended: boolean; password: string }> = {};
   if (parsed.data.name != null) updateData.name = parsed.data.name;
   if (parsed.data.role != null) updateData.role = parsed.data.role;
   if (parsed.data.isActive != null) updateData.isActive = parsed.data.isActive;
   if (parsed.data.isSuspended != null) updateData.isSuspended = parsed.data.isSuspended;
+  if (parsed.data.password != null) updateData.password = parsed.data.password;
 
   const [user] = await db
     .update(usersTable)
@@ -88,9 +89,11 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const action = parsed.data.isSuspended != null
-    ? (parsed.data.isSuspended ? "USER_SUSPENDED" : "USER_UNSUSPENDED")
-    : "USER_UPDATED";
+  const action = parsed.data.password != null
+    ? "USER_PASSWORD_RESET"
+    : parsed.data.isSuspended != null
+      ? (parsed.data.isSuspended ? "USER_SUSPENDED" : "USER_UNSUSPENDED")
+      : "USER_UPDATED";
 
   await createAuditLog({
     action,
