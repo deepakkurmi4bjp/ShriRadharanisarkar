@@ -113,7 +113,7 @@ export default function CollectorPanel() {
     if (!successData) return;
     const mobile = successData.donorMobile?.replace(/\D/g, "");
     const message = encodeURIComponent(
-      `🙏 श्री मां नर्मदा भक्त परिवार\n\nआपका दान प्राप्त हो गया!\n\nदानकर्ता: ${successData.name}\nराशि: ₹${successData.amount.toLocaleString("en-IN")}\nकारण: ${successData.purpose || "सामान्य दान"}\nरसीद ID: ${successData.donationId}\n\nरसीद सत्यापन लिंक:\n${verifyUrl}\n\nधन्यवाद 🙏`
+      `🙏 श्री मां नर्मदा भक्त परिवार को \n\nआपका दान प्राप्त हो गया है\n\nदानकर्ता: ${successData.name}\nराशि: ₹${successData.amount.toLocaleString("en-IN")}\nकारण: ${successData.purpose || "सामान्य दान"}\nरसीद ID: ${successData.donationId}\n\nरसीद सत्यापन लिंक:\n${verifyUrl}\n\nधन्यवाद 🙏`
     );
     window.open(`https://wa.me/91${mobile}?text=${message}`, "_blank");
   };

@@ -29,8 +29,7 @@ export default function VerifyDonation() {
             <img
               src="/logo.png"
               alt="श्री मां नर्मदा भक्त परिवार"
-              className="w-24 h-24 object-contain drop-shadow-xl rounded-full"
-              style={{ background: "white", padding: "4px" }}
+              className="w-28 h-28 object-contain drop-shadow-xl"
             />
           </div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#0369a1" }}>
