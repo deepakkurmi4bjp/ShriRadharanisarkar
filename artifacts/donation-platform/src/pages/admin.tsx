@@ -1,13 +1,181 @@
+import { useState } from "react";
 import { useGetAnalyticsSummary, getGetAnalyticsSummaryQueryKey, useGetDailyAnalytics, getGetDailyAnalyticsQueryKey, useGetTopCollectors, getGetTopCollectorsQueryKey, useGetAmountDistribution, getGetAmountDistributionQueryKey } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatRupee } from "@/lib/format";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
-import { ArrowRight, Users, TrendingUp, IndianRupee, ShieldAlert } from "lucide-react";
+import { ArrowRight, Users, TrendingUp, IndianRupee, ShieldAlert, Sparkles, TrendingDown, AlertTriangle, CheckCircle2, Info, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
 
 const COLORS = ['hsl(28, 85%, 45%)', 'hsl(40, 85%, 45%)', 'hsl(15, 85%, 45%)', 'hsl(5, 85%, 45%)', 'hsl(45, 85%, 45%)'];
+
+const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+type AiInsight = {
+  title: string;
+  description: string;
+  type: "positive" | "warning" | "info" | "achievement";
+};
+
+type AiInsightsResponse = {
+  insights: AiInsight[];
+  summary: string;
+  generatedAt: string;
+};
+
+function insightConfig(type: AiInsight["type"]) {
+  switch (type) {
+    case "positive":
+      return { icon: <TrendingUp size={18} />, class: "border-green-200 bg-green-50/70", badge: "bg-green-100 text-green-800 border-green-300", label: "सकारात्मक" };
+    case "achievement":
+      return { icon: <CheckCircle2 size={18} />, class: "border-amber-200 bg-amber-50/70", badge: "bg-amber-100 text-amber-800 border-amber-300", label: "उपलब्धि" };
+    case "warning":
+      return { icon: <AlertTriangle size={18} />, class: "border-red-200 bg-red-50/70", badge: "bg-red-100 text-red-800 border-red-300", label: "सावधानी" };
+    default:
+      return { icon: <Info size={18} />, class: "border-blue-200 bg-blue-50/70", badge: "bg-blue-100 text-blue-800 border-blue-300", label: "जानकारी" };
+  }
+}
+
+function AiInsightsPanel() {
+  const [data, setData] = useState<AiInsightsResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchInsights = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const resp = await fetch(`${API_BASE}/api/ai/insights`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => ({}));
+        throw new Error(j.error || "AI Insights लोड नहीं हो सके।");
+      }
+      setData(await resp.json());
+    } catch (e: any) {
+      setError(e.message || "कुछ गलत हुआ।");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <p className="text-muted-foreground text-sm">
+            वास्तविक दान डेटा के आधार पर AI द्वारा तैयार किए गए स्मार्ट Insights।
+          </p>
+        </div>
+        <Button
+          onClick={fetchInsights}
+          disabled={loading}
+          className="gap-2 min-w-[160px]"
+        >
+          {loading ? (
+            <>
+              <RefreshCw size={16} className="animate-spin" />
+              विश्लेषण हो रहा है...
+            </>
+          ) : (
+            <>
+              <Sparkles size={16} />
+              {data ? "दोबारा विश्लेषण करें" : "AI Insights देखें"}
+            </>
+          )}
+        </Button>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+          <AlertTriangle size={16} className="flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!data && !loading && !error && (
+        <div className="flex flex-col items-center justify-center py-16 gap-4 border-2 border-dashed border-muted rounded-xl bg-muted/20">
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Sparkles size={28} className="text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-lg">AI-Powered Analysis</p>
+            <p className="text-muted-foreground text-sm mt-1 max-w-xs">
+              "AI Insights देखें" बटन दबाएं और अपने दान डेटा का स्मार्ट विश्लेषण पाएं।
+            </p>
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {data && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+          >
+            {data.summary && (
+              <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                <Sparkles size={18} className="text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">AI सारांश</p>
+                  <p className="text-sm font-medium">{data.summary}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {data.insights.map((insight, i) => {
+                const cfg = insightConfig(insight.type);
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                  >
+                    <Card className={`border ${cfg.class} shadow-sm`}>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <span className="text-foreground/70">{cfg.icon}</span>
+                            {insight.title}
+                          </div>
+                          <Badge variant="outline" className={`text-xs flex-shrink-0 ${cfg.badge}`}>
+                            {cfg.label}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{insight.description}</p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-muted-foreground text-right">
+              विश्लेषण समय: {new Date(data.generatedAt).toLocaleString("en-IN")}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function AdminPanel() {
   const { data: summary, isLoading: isLoadingSummary } = useGetAnalyticsSummary({
@@ -114,9 +282,13 @@ export default function AdminPanel() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-muted/50 p-1">
+        <TabsList className="bg-muted/50 p-1 flex-wrap h-auto gap-1">
           <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">Trend Analytics</TabsTrigger>
           <TabsTrigger value="collectors" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">Collector Performance</TabsTrigger>
+          <TabsTrigger value="ai" className="data-[state=active]:bg-background data-[state=active]:shadow-sm gap-1.5">
+            <Sparkles size={14} className="text-amber-500" />
+            AI Insights
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
@@ -214,6 +386,23 @@ export default function AdminPanel() {
                   </ResponsiveContainer>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai">
+          <Card className="shadow-sm border-t-2 border-t-amber-400">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles size={20} className="text-amber-500" />
+                AI-Powered Insights
+              </CardTitle>
+              <CardDescription>
+                GPT द्वारा आपके दान डेटा का गहरा विश्लेषण — trends, patterns और सुझाव।
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AiInsightsPanel />
             </CardContent>
           </Card>
         </TabsContent>

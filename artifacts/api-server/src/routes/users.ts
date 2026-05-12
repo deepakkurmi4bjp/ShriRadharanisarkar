@@ -139,6 +139,10 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
     sql`UPDATE donations SET collector_id = NULL WHERE collector_id = ${params.data.id}`
   );
 
+  await db.execute(
+    sql`UPDATE audit_logs SET user_id = NULL WHERE user_id = ${params.data.id}`
+  );
+
   await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
 
   await createAuditLog({

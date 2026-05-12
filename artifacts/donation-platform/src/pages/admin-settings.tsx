@@ -157,8 +157,16 @@ export default function AdminSettings() {
           toast({ title: `🗑️ ${userName} को स्थायी रूप से हटाया गया` });
           queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
         },
-        onError: () => {
-          toast({ variant: "destructive", title: "User हटाने में समस्या" });
+        onError: (err: any) => {
+          const msg =
+            err?.data?.error ||
+            err?.message ||
+            "User हटाने में समस्या आई। कृपया दोबारा प्रयास करें।";
+          toast({
+            variant: "destructive",
+            title: "User हटाने में समस्या",
+            description: msg,
+          });
         },
       }
     );
