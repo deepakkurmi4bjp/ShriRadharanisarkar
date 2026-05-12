@@ -100,7 +100,8 @@ router.post("/donations", async (req, res): Promise<void> => {
 
   const { name, mobile, amount, purpose, collectorId } = parsed.data;
   const donationId = `DON${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const amountStr = String(amount);
+  // Normalize to remove trailing zeros (e.g. DB numeric returns "2100.00" but we need "2100")
+  const amountStr = String(parseFloat(String(amount)));
   const hash = generateDonationHash(donationId, amountStr);
 
   const [donation] = await db
@@ -243,7 +244,9 @@ router.get("/donations/:id/verify", async (req, res): Promise<void> => {
     return;
   }
 
-  const isValid = verifyDonationHash(d.donationId, d.amount, d.hash);
+  // Normalize amount: DB numeric column returns "2100.00" but hash was computed with "2100"
+  const normalizedAmount = String(parseFloat(d.amount));
+  const isValid = verifyDonationHash(d.donationId, normalizedAmount, d.hash);
 
   const donation = {
     id: d.id,
