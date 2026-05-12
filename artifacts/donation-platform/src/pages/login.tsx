@@ -79,9 +79,7 @@ export default function Login() {
         <Card className="border-t-4 border-t-primary shadow-2xl">
           <CardHeader className="space-y-3 text-center pb-4">
             <div className="flex justify-center">
-              <div className="h-16 w-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary shadow-inner">
-                <ShieldCheck size={34} />
-              </div>
+              <img src="/logo.png" alt="श्री मां नर्मदा" className="h-20 w-20 object-contain" />
             </div>
             <div>
               <CardTitle className="text-xl font-bold tracking-tight text-primary">

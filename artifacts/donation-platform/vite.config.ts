@@ -26,6 +26,13 @@ if (!basePath) {
   );
 }
 
+// Inject app domain for absolute OG image URLs (WhatsApp preview)
+const appDomain =
+  process.env.REPLIT_DOMAINS?.split(",")[0] ||
+  process.env.REPLIT_DEV_DOMAIN ||
+  "";
+process.env.VITE_APP_DOMAIN = appDomain ? `https://${appDomain}` : "";
+
 export default defineConfig({
   base: basePath,
   plugins: [

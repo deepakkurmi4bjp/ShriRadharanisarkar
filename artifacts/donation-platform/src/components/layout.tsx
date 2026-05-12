@@ -131,14 +131,14 @@ export function Layout({ children }: LayoutProps) {
               </DropdownMenu>
             </div>
 
-            <Link href="/" className="flex items-center gap-2 tracking-tight">
+            <Link href="/" className="flex items-center gap-1.5 tracking-tight">
               <img
                 src="/logo.png"
                 alt="लोगो"
-                className="w-10 h-10 object-contain hidden sm:block"
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
               />
               <div className="flex flex-col">
-                <span className="font-bold text-base md:text-lg leading-tight text-primary">
+                <span className="font-bold text-sm sm:text-base md:text-lg leading-tight text-primary">
                   श्री मां नर्मदा भक्त परिवार
                 </span>
                 <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">
