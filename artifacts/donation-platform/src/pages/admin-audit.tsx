@@ -29,23 +29,23 @@ export default function AdminAudit() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col border-b pb-4">
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2 text-destructive">
-          <ShieldAlert className="text-destructive" /> System Audit Trail
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 text-destructive">
+          <ShieldAlert className="text-destructive" size={22} /> System Audit Trail
         </h1>
-        <p className="text-muted-foreground mt-1">Immutable, chronological record of all system activities.</p>
+        <p className="text-muted-foreground mt-1 text-sm">Immutable, chronological record of all system activities.</p>
       </div>
 
       <Card className="shadow-md border-t-2 border-t-destructive">
-        <div className="bg-destructive/5 p-3 flex gap-4 text-sm border-b">
+        <div className="bg-destructive/5 p-3 flex flex-wrap gap-3 text-sm border-b">
           <div className="flex items-center gap-2 font-medium text-destructive">
-            <Activity size={16} /> LIVE MONITORING ACTIVE
+            <Activity size={15} /> LIVE MONITORING ACTIVE
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Server size={16} /> Data retained securely.
+            <Server size={15} /> Data retained securely.
           </div>
         </div>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[560px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="w-[180px] font-bold">Timestamp</TableHead>

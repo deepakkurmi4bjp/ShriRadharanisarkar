@@ -82,12 +82,12 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <UserCog className="text-primary" /> User Access Management
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+            <UserCog className="text-primary" size={22} /> User Management
           </h1>
-          <p className="text-muted-foreground mt-1">Control who can access the system and their roles.</p>
+          <p className="text-muted-foreground mt-1 text-sm">Control who can access the system and their roles.</p>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -140,8 +140,8 @@ export default function AdminUsers() {
       </div>
 
       <Card className="shadow-md border-t-2 border-t-primary">
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[520px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="w-[250px] font-bold">User Identity</TableHead>

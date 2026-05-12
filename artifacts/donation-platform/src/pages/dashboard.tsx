@@ -41,14 +41,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Public Dashboard</h1>
-        <p className="text-muted-foreground flex items-center gap-2">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Public Dashboard</h1>
+        <p className="text-muted-foreground flex items-center gap-2 text-sm">
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
           </span>
-          Live updating every 30 seconds
+          हर 30 सेकंड में अपडेट होता है
         </p>
       </div>
 
@@ -56,7 +56,7 @@ export default function Dashboard() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-3 grid-cols-2 lg:grid-cols-4"
       >
         <motion.div variants={item}>
           <Card className="border-t-4 border-t-primary shadow-md">
@@ -68,13 +68,13 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {isLoadingSummary ? (
-                <Skeleton className="h-8 w-[120px]" />
+                <Skeleton className="h-7 w-[100px]" />
               ) : (
-                <div className="text-3xl font-bold text-primary">{formatRupee(summary?.totalAmount)}</div>
+                <div className="text-xl sm:text-3xl font-bold text-primary">{formatRupee(summary?.totalAmount)}</div>
               )}
               <p className="text-xs text-muted-foreground mt-1 text-green-600 font-medium flex items-center">
-                <ArrowUpRight size={14} className="mr-1" />
-                {formatRupee(summary?.todayAmount)} today
+                <ArrowUpRight size={12} className="mr-1" />
+                {formatRupee(summary?.todayAmount)} आज
               </p>
             </CardContent>
           </Card>
@@ -90,12 +90,12 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {isLoadingSummary ? (
-                <Skeleton className="h-8 w-[80px]" />
+                <Skeleton className="h-7 w-[60px]" />
               ) : (
-                <div className="text-3xl font-bold">{summary?.totalDonors?.toLocaleString('en-IN') || 0}</div>
+                <div className="text-xl sm:text-3xl font-bold">{summary?.totalDonors?.toLocaleString('en-IN') || 0}</div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                {summary?.todayDonations?.toLocaleString('en-IN') || 0} donations today
+                {summary?.todayDonations?.toLocaleString('en-IN') || 0} आज
               </p>
             </CardContent>
           </Card>
@@ -111,9 +111,9 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {isLoadingSummary ? (
-                <Skeleton className="h-8 w-[100px]" />
+                <Skeleton className="h-7 w-[80px]" />
               ) : (
-                <div className="text-3xl font-bold">{formatRupee(summary?.avgDonation)}</div>
+                <div className="text-xl sm:text-3xl font-bold">{formatRupee(summary?.avgDonation)}</div>
               )}
             </CardContent>
           </Card>
@@ -129,17 +129,17 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {isLoadingSummary ? (
-                <Skeleton className="h-8 w-[60px]" />
+                <Skeleton className="h-7 w-[40px]" />
               ) : (
-                <div className="text-3xl font-bold">{summary?.totalCollectors?.toLocaleString('en-IN') || 0}</div>
+                <div className="text-xl sm:text-3xl font-bold">{summary?.totalCollectors?.toLocaleString('en-IN') || 0}</div>
               )}
             </CardContent>
           </Card>
         </motion.div>
       </motion.div>
 
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4 tracking-tight">Recent Donations</h2>
+      <div className="mt-6">
+        <h2 className="text-lg sm:text-xl font-bold mb-3 tracking-tight">हाल के दान</h2>
         <Card className="shadow-md overflow-hidden border-border/50">
           <div className="divide-y">
             {isLoadingDonations ? (
@@ -172,14 +172,14 @@ export default function Dashboard() {
                         <span className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">VERIFIED</span>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground flex gap-3 mt-1">
+                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2 mt-1">
                       <span>{formatDate(donation.createdAt)}</span>
-                      {donation.purpose && <span className="hidden sm:inline">&bull; {donation.purpose}</span>}
+                      {donation.purpose && <span className="hidden sm:inline truncate max-w-[160px]">&bull; {donation.purpose}</span>}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-lg text-primary">{formatRupee(donation.amount)}</div>
-                    <div className="text-xs text-muted-foreground">ID: {donation.donationId}</div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-bold text-base sm:text-lg text-primary">{formatRupee(donation.amount)}</div>
+                    <div className="text-[10px] text-muted-foreground truncate max-w-[120px]">ID: {donation.donationId.slice(-8)}</div>
                   </div>
                 </motion.div>
               ))

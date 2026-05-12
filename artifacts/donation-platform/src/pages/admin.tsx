@@ -209,23 +209,23 @@ export default function AdminPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+      <div className="flex flex-col gap-3 border-b pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Intelligence</h1>
-          <p className="text-muted-foreground mt-1">High-level overview and audit analytics.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Intelligence</h1>
+          <p className="text-muted-foreground mt-1 text-sm">High-level overview and audit analytics.</p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Link href="/admin/users" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 gap-2">
-            <Users size={16} /> User Management
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/admin/users" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 py-2 gap-1.5">
+            <Users size={15} /> यूज़र प्रबंधन
           </Link>
-          <Link href="/admin/audit" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 gap-2 shadow-sm">
-            <ShieldAlert size={16} /> Audit Logs
+          <Link href="/admin/audit" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3 py-2 gap-1.5 shadow-sm">
+            <ShieldAlert size={15} /> Audit Logs
           </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
@@ -291,14 +291,14 @@ export default function AdminPanel() {
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="col-span-1 lg:col-span-2 shadow-sm border-t-2 border-t-primary">
-              <CardHeader>
-                <CardTitle>30-Day Revenue Trend</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base sm:text-lg">30-Day Revenue Trend</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[350px] w-full">
+                <div className="h-[220px] sm:h-[300px] lg:h-[350px] w-full">
                   {isLoadingDaily ? (
                     <Skeleton className="h-full w-full" />
                   ) : (
@@ -323,11 +323,11 @@ export default function AdminPanel() {
             </Card>
 
             <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Donation Brackets</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base sm:text-lg">Donation Brackets</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px] w-full flex flex-col items-center justify-center">
+                <div className="h-[220px] sm:h-[300px] w-full flex flex-col items-center justify-center">
                   {isLoadingDist ? (
                     <Skeleton className="h-[250px] w-[250px] rounded-full" />
                   ) : (
@@ -367,11 +367,11 @@ export default function AdminPanel() {
         
         <TabsContent value="collectors">
           <Card className="shadow-sm border-t-2 border-t-primary">
-            <CardHeader>
-              <CardTitle>Top Collectors Leaderboard</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base sm:text-lg">Top Collectors Leaderboard</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[400px] w-full">
+              <div className="h-[280px] sm:h-[400px] w-full">
                 {isLoadingTop ? (
                   <Skeleton className="h-full w-full" />
                 ) : (

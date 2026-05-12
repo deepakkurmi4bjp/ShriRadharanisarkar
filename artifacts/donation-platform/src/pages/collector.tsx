@@ -125,23 +125,23 @@ export default function CollectorPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Collector Workspace</h1>
-          <p className="text-muted-foreground mt-1">नए दान दर्ज करें और अपने दैनिक संग्रह ट्रैक करें।</p>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Collector Workspace</h1>
+          <p className="text-muted-foreground mt-1 text-sm">नए दान दर्ज करें और अपने दैनिक संग्रह ट्रैक करें।</p>
         </div>
         
-        <Card className="bg-primary text-primary-foreground border-none shadow-lg">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-full">
-              <IndianRupee size={24} />
+        <Card className="bg-primary text-primary-foreground border-none shadow-lg sm:min-w-[200px]">
+          <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+            <div className="bg-white/20 p-2 sm:p-3 rounded-full">
+              <IndianRupee size={20} />
             </div>
             <div>
-              <p className="text-primary-foreground/80 text-sm font-medium uppercase tracking-wider">आज का कुल संग्रह</p>
+              <p className="text-primary-foreground/80 text-xs font-medium uppercase tracking-wider">आज का संग्रह</p>
               {isLoadingSummary ? (
-                <Skeleton className="h-8 w-[100px] bg-primary-foreground/20 mt-1" />
+                <Skeleton className="h-7 w-[80px] bg-primary-foreground/20 mt-1" />
               ) : (
-                <p className="text-2xl font-bold">{formatRupee(summary?.todayAmount || 0)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatRupee(summary?.todayAmount || 0)}</p>
               )}
             </div>
           </CardContent>
@@ -325,7 +325,7 @@ export default function CollectorPanel() {
       </div>
 
       <Dialog open={!!successData} onOpenChange={(open) => !open && setSuccessData(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] max-w-md mx-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl text-center text-green-600 flex flex-col items-center gap-2">
               <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-2">
