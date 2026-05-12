@@ -2,7 +2,7 @@ import { useRoute } from "wouter";
 import { useVerifyDonation, getVerifyDonationQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatRupee, formatDate } from "@/lib/format";
-import { ShieldCheck, ShieldAlert, Loader2, Info, BadgeCheck } from "lucide-react";
+import { ShieldAlert, Loader2, Info, BadgeCheck } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +25,13 @@ export default function VerifyDonation() {
       <div className="w-full max-w-md">
 
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-3 rounded-xl text-white mb-4 shadow-lg"
-            style={{ background: "linear-gradient(135deg, #0ea5e9, #0284c7)" }}>
-            <ShieldCheck size={32} />
+          <div className="flex items-center justify-center mb-3">
+            <img
+              src="/logo.png"
+              alt="श्री मां नर्मदा भक्त परिवार"
+              className="w-24 h-24 object-contain drop-shadow-xl rounded-full"
+              style={{ background: "white", padding: "4px" }}
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#0369a1" }}>
             श्री मां नर्मदा भक्त परिवार
