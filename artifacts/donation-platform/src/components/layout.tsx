@@ -132,9 +132,11 @@ export function Layout({ children }: LayoutProps) {
             </div>
 
             <Link href="/" className="flex items-center gap-2 tracking-tight">
-              <div className="bg-primary text-primary-foreground p-1.5 rounded-md hidden sm:block">
-                <ShieldCheck size={20} />
-              </div>
+              <img
+                src="/logo.png"
+                alt="लोगो"
+                className="w-10 h-10 object-contain hidden sm:block"
+              />
               <div className="flex flex-col">
                 <span className="font-bold text-base md:text-lg leading-tight text-primary">
                   श्री मां नर्मदा भक्त परिवार
