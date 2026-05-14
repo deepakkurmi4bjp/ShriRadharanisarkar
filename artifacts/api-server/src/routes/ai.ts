@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 router.get("/ai/insights", async (req, res): Promise<void> => {
   try {
-    const [summary] = await db.execute<{
+    const summaryRows = await db.execute<{
       total_amount: string;
       total_donations: string;
       today_amount: string;
@@ -22,17 +22,18 @@ router.get("/ai/insights", async (req, res): Promise<void> => {
         COALESCE(AVG(amount), 0)::text AS avg_donation
       FROM donations
     `);
+    const summary = (summaryRows as unknown as any[])[0];
 
-    const topCollectors = await db.execute<{ name: string; total: string; count: string }>(sql`
+    const topCollectors = (await db.execute<{ name: string; total: string; count: string }>(sql`
       SELECT u.name, SUM(d.amount)::text AS total, COUNT(d.id)::text AS count
       FROM donations d
       JOIN users u ON u.id = d.collector_id
       GROUP BY u.name
       ORDER BY SUM(d.amount) DESC
       LIMIT 5
-    `);
+    `)) as unknown as any[];
 
-    const recentTrend = await db.execute<{ date: string; amount: string; count: string }>(sql`
+    const recentTrend = (await db.execute<{ date: string; amount: string; count: string }>(sql`
       SELECT
         DATE(created_at AT TIME ZONE 'Asia/Kolkata')::text AS date,
         SUM(amount)::text AS amount,
@@ -42,16 +43,16 @@ router.get("/ai/insights", async (req, res): Promise<void> => {
       GROUP BY DATE(created_at AT TIME ZONE 'Asia/Kolkata')
       ORDER BY date DESC
       LIMIT 7
-    `);
+    `)) as unknown as any[];
 
-    const topPurposes = await db.execute<{ purpose: string; count: string; total: string }>(sql`
+    const topPurposes = (await db.execute<{ purpose: string; count: string; total: string }>(sql`
       SELECT purpose, COUNT(*)::text AS count, SUM(amount)::text AS total
       FROM donations
       WHERE purpose IS NOT NULL
       GROUP BY purpose
       ORDER BY SUM(amount) DESC
       LIMIT 5
-    `);
+    `)) as unknown as any[];
 
     const dataContext = `
 आप एक दान प्रबंधन प्रणाली के AI सहायक हैं। नीचे दिए गए डेटा का विश्लेषण करें और हिंदी में 3-5 महत्वपूर्ण insights दें।
@@ -64,13 +65,13 @@ router.get("/ai/insights", async (req, res): Promise<void> => {
 - औसत दान: ₹${Math.round(Number(summary?.avg_donation || 0)).toLocaleString('en-IN')}
 
 **शीर्ष Collector:**
-${topCollectors.map((c, i) => `${i + 1}. ${c.name} — ₹${Number(c.total).toLocaleString('en-IN')} (${c.count} दान)`).join('\n')}
+${topCollectors.map((c: any, i: number) => `${i + 1}. ${c.name} — ₹${Number(c.total).toLocaleString('en-IN')} (${c.count} दान)`).join('\n')}
 
 **पिछले 7 दिनों का ट्रेंड:**
-${recentTrend.map(r => `${r.date}: ₹${Number(r.amount).toLocaleString('en-IN')} (${r.count} दान)`).join('\n')}
+${recentTrend.map((r: any) => `${r.date}: ₹${Number(r.amount).toLocaleString('en-IN')} (${r.count} दान)`).join('\n')}
 
 **शीर्ष उद्देश्य:**
-${topPurposes.map(p => `${p.purpose}: ₹${Number(p.total).toLocaleString('en-IN')} (${p.count} दान)`).join('\n')}
+${topPurposes.map((p: any) => `${p.purpose}: ₹${Number(p.total).toLocaleString('en-IN')} (${p.count} दान)`).join('\n')}
 
 कृपया निम्नलिखित प्रारूप में JSON response दें:
 {
@@ -86,7 +87,7 @@ ${topPurposes.map(p => `${p.purpose}: ₹${Number(p.total).toLocaleString('en-IN
 `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5-mini",
+      model: "gpt-4o-mini",
       max_completion_tokens: 1024,
       messages: [
         {
