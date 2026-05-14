@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db, donationsTable, usersTable } from "@workspace/db";
 import { sql, eq, desc, gte } from "drizzle-orm";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
+// Public — used by the public dashboard
 router.get("/analytics/summary", async (_req, res): Promise<void> => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -42,7 +44,8 @@ router.get("/analytics/summary", async (_req, res): Promise<void> => {
   });
 });
 
-router.get("/analytics/daily", async (_req, res): Promise<void> => {
+// Admin-only analytics
+router.get("/analytics/daily", requireAuth("admin"), async (_req, res): Promise<void> => {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -57,10 +60,10 @@ router.get("/analytics/daily", async (_req, res): Promise<void> => {
     .groupBy(sql`DATE(created_at)`)
     .orderBy(sql`DATE(created_at)`);
 
-  res.json(rows.map(r => ({ date: r.date, amount: r.amount, count: r.count })));
+  res.json(rows.map((r) => ({ date: r.date, amount: r.amount, count: r.count })));
 });
 
-router.get("/analytics/top-collectors", async (_req, res): Promise<void> => {
+router.get("/analytics/top-collectors", requireAuth("admin"), async (_req, res): Promise<void> => {
   const rows = await db
     .select({
       collectorId: donationsTable.collectorId,
@@ -76,7 +79,7 @@ router.get("/analytics/top-collectors", async (_req, res): Promise<void> => {
     .limit(10);
 
   res.json(
-    rows.map(r => ({
+    rows.map((r) => ({
       collectorId: r.collectorId!,
       collectorName: r.collectorName ?? "Unknown",
       totalAmount: r.totalAmount,
@@ -85,7 +88,7 @@ router.get("/analytics/top-collectors", async (_req, res): Promise<void> => {
   );
 });
 
-router.get("/analytics/amount-distribution", async (_req, res): Promise<void> => {
+router.get("/analytics/amount-distribution", requireAuth("admin"), async (_req, res): Promise<void> => {
   const buckets = [
     { range: "Under ₹100", min: 0, max: 99 },
     { range: "₹100 - ₹500", min: 100, max: 500 },
@@ -95,7 +98,7 @@ router.get("/analytics/amount-distribution", async (_req, res): Promise<void> =>
   ];
 
   const result = await Promise.all(
-    buckets.map(async bucket => {
+    buckets.map(async (bucket) => {
       const [row] = await db
         .select({
           count: sql<number>`COUNT(*)::int`,
@@ -104,11 +107,7 @@ router.get("/analytics/amount-distribution", async (_req, res): Promise<void> =>
         .from(donationsTable)
         .where(sql`amount::numeric >= ${bucket.min} AND amount::numeric <= ${bucket.max}`);
 
-      return {
-        range: bucket.range,
-        count: row?.count ?? 0,
-        amount: row?.amount ?? 0,
-      };
+      return { range: bucket.range, count: row?.count ?? 0, amount: row?.amount ?? 0 };
     })
   );
 

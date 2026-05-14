@@ -10,9 +10,11 @@ import {
 } from "@workspace/api-zod";
 import { generateDonationHash, verifyDonationHash } from "../lib/hash";
 import { createAuditLog } from "../lib/audit";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
+// Public — shown on dashboard
 router.get("/donations", async (req, res): Promise<void> => {
   const params = ListDonationsQueryParams.safeParse(req.query);
   if (!params.success) {
@@ -22,11 +24,6 @@ router.get("/donations", async (req, res): Promise<void> => {
 
   const { page = 1, limit = 20, collector_id, search } = params.data;
   const offset = (page - 1) * limit;
-
-  const conditions: ReturnType<typeof eq>[] = [];
-  if (collector_id != null) {
-    conditions.push(eq(donationsTable.collectorId, collector_id));
-  }
 
   const baseQuery = db
     .select({
@@ -52,9 +49,9 @@ router.get("/donations", async (req, res): Promise<void> => {
       .orderBy(desc(donationsTable.createdAt))
       .limit(limit)
       .offset(offset) as any;
-  } else if (conditions.length > 0) {
+  } else if (collector_id != null) {
     rows = await baseQuery
-      .where(conditions[0])
+      .where(eq(donationsTable.collectorId, collector_id))
       .orderBy(desc(donationsTable.createdAt))
       .limit(limit)
       .offset(offset) as any;
@@ -91,7 +88,8 @@ router.get("/donations", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/donations", async (req, res): Promise<void> => {
+// Collector+ required to add donations
+router.post("/donations", requireAuth("collector"), async (req, res): Promise<void> => {
   const parsed = CreateDonationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -100,7 +98,6 @@ router.post("/donations", async (req, res): Promise<void> => {
 
   const { name, mobile, amount, purpose, collectorId } = parsed.data;
   const donationId = `DON${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  // Normalize to remove trailing zeros (e.g. DB numeric returns "2100.00" but we need "2100")
   const amountStr = String(parseFloat(String(amount)));
   const hash = generateDonationHash(donationId, amountStr);
 
@@ -118,13 +115,13 @@ router.post("/donations", async (req, res): Promise<void> => {
     .returning();
 
   const collector = collectorId
-    ? await db.select().from(usersTable).where(eq(usersTable.id, collectorId)).then(r => r[0])
+    ? await db.select().from(usersTable).where(eq(usersTable.id, collectorId)).then((r) => r[0])
     : null;
 
   await createAuditLog({
     userId: collectorId ?? null,
     action: "DONATION_CREATED",
-    details: `Donation ${donationId} of ₹${amount} by ${name}`,
+    details: `Donation ${donationId} of ₹${amount} by ${name} (collector: ${collector?.name ?? "unknown"})`,
     ipAddress: req.ip,
   });
 
@@ -143,6 +140,7 @@ router.post("/donations", async (req, res): Promise<void> => {
   });
 });
 
+// Public — used by verify page
 router.get("/donations/:id", async (req, res): Promise<void> => {
   const params = GetDonationParams.safeParse(req.params);
   if (!params.success) {
@@ -188,7 +186,8 @@ router.get("/donations/:id", async (req, res): Promise<void> => {
   });
 });
 
-router.delete("/donations/:id", async (req, res): Promise<void> => {
+// Admin+ required to delete
+router.delete("/donations/:id", requireAuth("admin"), async (req, res): Promise<void> => {
   const params = DeleteDonationParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -206,14 +205,16 @@ router.delete("/donations/:id", async (req, res): Promise<void> => {
   }
 
   await createAuditLog({
+    userId: req.authUser?.id,
     action: "DONATION_DELETED",
-    details: `Donation ${deleted.donationId} deleted`,
+    details: `Donation ${deleted.donationId} deleted by ${req.authUser?.name ?? "Admin"}`,
     ipAddress: req.ip,
   });
 
   res.sendStatus(204);
 });
 
+// Public — QR verify page
 router.get("/donations/:id/verify", async (req, res): Promise<void> => {
   const params = VerifyDonationParams.safeParse(req.params);
   if (!params.success) {
@@ -244,28 +245,27 @@ router.get("/donations/:id/verify", async (req, res): Promise<void> => {
     return;
   }
 
-  // Normalize amount: DB numeric column returns "2100.00" but hash was computed with "2100"
   const normalizedAmount = String(parseFloat(d.amount));
   const isValid = verifyDonationHash(d.donationId, normalizedAmount, d.hash);
 
-  const donation = {
-    id: d.id,
-    donationId: d.donationId,
-    name: d.name,
-    mobile: d.mobile,
-    amount: parseFloat(d.amount),
-    purpose: d.purpose ?? null,
-    collectorId: d.collectorId ?? null,
-    collectorName: (d as any).collectorName ?? null,
-    hash: d.hash,
-    isVerified: isValid,
-    createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : d.createdAt,
-  };
-
   res.json({
     valid: isValid,
-    donation,
-    message: isValid ? "Receipt is authentic and verified" : "Receipt hash mismatch - possible tampering detected",
+    donation: {
+      id: d.id,
+      donationId: d.donationId,
+      name: d.name,
+      mobile: d.mobile,
+      amount: parseFloat(d.amount),
+      purpose: d.purpose ?? null,
+      collectorId: d.collectorId ?? null,
+      collectorName: (d as any).collectorName ?? null,
+      hash: d.hash,
+      isVerified: isValid,
+      createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : d.createdAt,
+    },
+    message: isValid
+      ? "Receipt is authentic and verified"
+      : "Receipt hash mismatch - possible tampering detected",
   });
 });
 

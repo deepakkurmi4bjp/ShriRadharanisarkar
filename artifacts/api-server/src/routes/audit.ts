@@ -2,10 +2,11 @@ import { Router, type IRouter } from "express";
 import { db, auditLogsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { ListAuditLogsQueryParams } from "@workspace/api-zod";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
-router.get("/audit-logs", async (req, res): Promise<void> => {
+router.get("/audit-logs", requireAuth("admin"), async (req, res): Promise<void> => {
   const params = ListAuditLogsQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -32,7 +33,7 @@ router.get("/audit-logs", async (req, res): Promise<void> => {
     .offset(offset);
 
   res.json(
-    rows.map(r => ({
+    rows.map((r) => ({
       id: r.id,
       userId: r.userId ?? null,
       userName: r.userName ?? null,

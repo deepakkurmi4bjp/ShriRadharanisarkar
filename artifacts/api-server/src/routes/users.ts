@@ -1,15 +1,17 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { CreateUserBody, UpdateUserBody, UpdateUserParams, DeleteUserParams } from "@workspace/api-zod";
 import { createAuditLog } from "../lib/audit";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
-router.get("/users", async (_req, res): Promise<void> => {
+router.get("/users", requireAuth("admin"), async (_req, res): Promise<void> => {
   const users = await db.select().from(usersTable).orderBy(usersTable.createdAt);
   res.json(
-    users.map(u => ({
+    users.map((u) => ({
       id: u.id,
       name: u.name,
       mobile: u.mobile,
@@ -22,30 +24,41 @@ router.get("/users", async (_req, res): Promise<void> => {
   );
 });
 
-router.post("/users", async (req, res): Promise<void> => {
+router.post("/users", requireAuth("super_admin"), async (req, res): Promise<void> => {
   const parsed = CreateUserBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  const existing = await db.select().from(usersTable).where(eq(usersTable.mobile, parsed.data.mobile)).then(r => r[0]);
+  const existing = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.mobile, parsed.data.mobile))
+    .then((r) => r[0]);
   if (existing) {
     res.status(409).json({ error: "इस मोबाइल नंबर से पहले से account मौजूद है।" });
     return;
   }
 
-  const [user] = await db.insert(usersTable).values({
-    name: parsed.data.name,
-    mobile: parsed.data.mobile,
-    role: parsed.data.role,
-    password: parsed.data.password ?? null,
-    photoUrl: (parsed.data as any).photoUrl ?? null,
-  }).returning();
+  const rawPassword = parsed.data.password ?? null;
+  const hashedPassword = rawPassword ? await bcrypt.hash(rawPassword, 12) : null;
+
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      name: parsed.data.name,
+      mobile: parsed.data.mobile,
+      role: parsed.data.role,
+      password: hashedPassword,
+      photoUrl: (parsed.data as any).photoUrl ?? null,
+    })
+    .returning();
 
   await createAuditLog({
+    userId: req.authUser?.id,
     action: "USER_CREATED",
-    details: `User ${user.name} (${user.role}) created by Super Admin`,
+    details: `User ${user.name} (${user.role}) created by ${req.authUser?.name ?? "Admin"}`,
     ipAddress: req.ip,
   });
 
@@ -61,7 +74,7 @@ router.post("/users", async (req, res): Promise<void> => {
   });
 });
 
-router.patch("/users/:id", async (req, res): Promise<void> => {
+router.patch("/users/:id", requireAuth("admin"), async (req, res): Promise<void> => {
   const params = UpdateUserParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -79,7 +92,9 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
   if (parsed.data.role != null) updateData.role = parsed.data.role;
   if (parsed.data.isActive != null) updateData.isActive = parsed.data.isActive;
   if (parsed.data.isSuspended != null) updateData.isSuspended = parsed.data.isSuspended;
-  if (parsed.data.password != null) updateData.password = parsed.data.password;
+  if (parsed.data.password != null) {
+    updateData.password = await bcrypt.hash(parsed.data.password, 12);
+  }
   if ((parsed.data as any).photoUrl !== undefined) updateData.photoUrl = (parsed.data as any).photoUrl;
 
   const [user] = await db
@@ -93,15 +108,19 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const action = parsed.data.password != null
-    ? "USER_PASSWORD_RESET"
-    : parsed.data.isSuspended != null
-      ? (parsed.data.isSuspended ? "USER_SUSPENDED" : "USER_UNSUSPENDED")
-      : "USER_UPDATED";
+  const action =
+    parsed.data.password != null
+      ? "USER_PASSWORD_RESET"
+      : parsed.data.isSuspended != null
+        ? parsed.data.isSuspended
+          ? "USER_SUSPENDED"
+          : "USER_UNSUSPENDED"
+        : "USER_UPDATED";
 
   await createAuditLog({
+    userId: req.authUser?.id,
     action,
-    details: `User ${user.name} — ${action.toLowerCase().replace(/_/g, " ")}`,
+    details: `User ${user.name} — ${action.toLowerCase().replace(/_/g, " ")} by ${req.authUser?.name ?? "Admin"}`,
     ipAddress: req.ip,
   });
 
@@ -117,14 +136,18 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
   });
 });
 
-router.delete("/users/:id", async (req, res): Promise<void> => {
+router.delete("/users/:id", requireAuth("super_admin"), async (req, res): Promise<void> => {
   const params = DeleteUserParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  const targetUser = await db.select().from(usersTable).where(eq(usersTable.id, params.data.id)).then(r => r[0]);
+  const targetUser = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, params.data.id))
+    .then((r) => r[0]);
   if (!targetUser) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -138,16 +161,15 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
   await db.execute(
     sql`UPDATE donations SET collector_id = NULL WHERE collector_id = ${params.data.id}`
   );
-
   await db.execute(
     sql`UPDATE audit_logs SET user_id = NULL WHERE user_id = ${params.data.id}`
   );
-
   await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
 
   await createAuditLog({
+    userId: req.authUser?.id,
     action: "USER_DELETED",
-    details: `User ${targetUser.name} (${targetUser.role}) permanently deleted by Super Admin`,
+    details: `User ${targetUser.name} (${targetUser.role}) permanently deleted by ${req.authUser?.name ?? "Admin"}`,
     ipAddress: req.ip,
   });
 
