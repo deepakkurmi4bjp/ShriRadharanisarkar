@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 router.get("/ai/insights", async (req, res): Promise<void> => {
   try {
-    const summaryRows = await db.execute<{
+    const summaryResult = await db.execute<{
       total_amount: string;
       total_donations: string;
       today_amount: string;
@@ -22,18 +22,19 @@ router.get("/ai/insights", async (req, res): Promise<void> => {
         COALESCE(AVG(amount), 0)::text AS avg_donation
       FROM donations
     `);
-    const summary = (summaryRows as unknown as any[])[0];
+    const summary = ((summaryResult as unknown as { rows: any[] }).rows ?? (summaryResult as unknown as any[]))[0];
 
-    const topCollectors = (await db.execute<{ name: string; total: string; count: string }>(sql`
+    const topCollectorsResult = await db.execute<{ name: string; total: string; count: string }>(sql`
       SELECT u.name, SUM(d.amount)::text AS total, COUNT(d.id)::text AS count
       FROM donations d
       JOIN users u ON u.id = d.collector_id
       GROUP BY u.name
       ORDER BY SUM(d.amount) DESC
       LIMIT 5
-    `)) as unknown as any[];
+    `);
+    const topCollectors = (topCollectorsResult as unknown as { rows: any[] }).rows ?? (topCollectorsResult as unknown as any[]);
 
-    const recentTrend = (await db.execute<{ date: string; amount: string; count: string }>(sql`
+    const recentTrendResult = await db.execute<{ date: string; amount: string; count: string }>(sql`
       SELECT
         DATE(created_at AT TIME ZONE 'Asia/Kolkata')::text AS date,
         SUM(amount)::text AS amount,
@@ -43,16 +44,18 @@ router.get("/ai/insights", async (req, res): Promise<void> => {
       GROUP BY DATE(created_at AT TIME ZONE 'Asia/Kolkata')
       ORDER BY date DESC
       LIMIT 7
-    `)) as unknown as any[];
+    `);
+    const recentTrend = (recentTrendResult as unknown as { rows: any[] }).rows ?? (recentTrendResult as unknown as any[]);
 
-    const topPurposes = (await db.execute<{ purpose: string; count: string; total: string }>(sql`
+    const topPurposesResult = await db.execute<{ purpose: string; count: string; total: string }>(sql`
       SELECT purpose, COUNT(*)::text AS count, SUM(amount)::text AS total
       FROM donations
       WHERE purpose IS NOT NULL
       GROUP BY purpose
       ORDER BY SUM(amount) DESC
       LIMIT 5
-    `)) as unknown as any[];
+    `);
+    const topPurposes = (topPurposesResult as unknown as { rows: any[] }).rows ?? (topPurposesResult as unknown as any[]);
 
     const dataContext = `
 आप एक दान प्रबंधन प्रणाली के AI सहायक हैं। नीचे दिए गए डेटा का विश्लेषण करें और हिंदी में 3-5 महत्वपूर्ण insights दें।
