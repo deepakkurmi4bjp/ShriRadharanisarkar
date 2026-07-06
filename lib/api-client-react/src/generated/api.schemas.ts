@@ -38,6 +38,9 @@ export interface User {
   mobile: string;
   role: string;
   isActive: boolean;
+  isSuspended?: boolean;
+  /** @nullable */
+  photoUrl?: string | null;
   createdAt: string;
 }
 
@@ -60,6 +63,9 @@ export interface CreateUserBody {
   name: string;
   mobile: string;
   role: CreateUserBodyRole;
+  password?: string;
+  /** @nullable */
+  photoUrl?: string | null;
 }
 
 export interface UpdateUserBody {
@@ -69,6 +75,12 @@ export interface UpdateUserBody {
   role?: string | null;
   /** @nullable */
   isActive?: boolean | null;
+  /** @nullable */
+  isSuspended?: boolean | null;
+  /** @nullable */
+  password?: string | null;
+  /** @nullable */
+  photoUrl?: string | null;
 }
 
 export interface Donation {

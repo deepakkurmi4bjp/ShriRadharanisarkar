@@ -21,7 +21,6 @@ export const LoginBody = zod.object({
   mobile: zod.string(),
   role: zod.enum(["super_admin", "admin", "collector", "public"]),
   name: zod.string(),
-  password: zod.string().optional(),
 });
 
 export const LoginResponse = zod.object({
@@ -31,6 +30,8 @@ export const LoginResponse = zod.object({
     mobile: zod.string(),
     role: zod.string(),
     isActive: zod.boolean(),
+    isSuspended: zod.boolean().optional(),
+    photoUrl: zod.string().nullish(),
     createdAt: zod.string(),
   }),
   token: zod.string(),
@@ -52,6 +53,8 @@ export const GetMeResponse = zod.object({
   mobile: zod.string(),
   role: zod.string(),
   isActive: zod.boolean(),
+  isSuspended: zod.boolean().optional(),
+  photoUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -162,7 +165,8 @@ export const ListUsersResponseItem = zod.object({
   mobile: zod.string(),
   role: zod.string(),
   isActive: zod.boolean(),
-  isSuspended: zod.boolean(),
+  isSuspended: zod.boolean().optional(),
+  photoUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
@@ -173,8 +177,9 @@ export const ListUsersResponse = zod.array(ListUsersResponseItem);
 export const CreateUserBody = zod.object({
   name: zod.string(),
   mobile: zod.string(),
-  password: zod.string().optional(),
   role: zod.enum(["super_admin", "admin", "collector", "public"]),
+  password: zod.string().optional(),
+  photoUrl: zod.string().nullish(),
 });
 
 /**
@@ -190,6 +195,7 @@ export const UpdateUserBody = zod.object({
   isActive: zod.boolean().nullish(),
   isSuspended: zod.boolean().nullish(),
   password: zod.string().nullish(),
+  photoUrl: zod.string().nullish(),
 });
 
 export const UpdateUserResponse = zod.object({
@@ -198,7 +204,8 @@ export const UpdateUserResponse = zod.object({
   mobile: zod.string(),
   role: zod.string(),
   isActive: zod.boolean(),
-  isSuspended: zod.boolean(),
+  isSuspended: zod.boolean().optional(),
+  photoUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
 

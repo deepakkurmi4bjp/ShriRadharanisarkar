@@ -11,4 +11,7 @@ export interface CreateUserBody {
   name: string;
   mobile: string;
   role: CreateUserBodyRole;
+  password?: string;
+  /** @nullable */
+  photoUrl?: string | null;
 }

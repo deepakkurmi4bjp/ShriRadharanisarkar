@@ -12,5 +12,8 @@ export interface User {
   mobile: string;
   role: string;
   isActive: boolean;
+  isSuspended?: boolean;
+  /** @nullable */
+  photoUrl?: string | null;
   createdAt: string;
 }

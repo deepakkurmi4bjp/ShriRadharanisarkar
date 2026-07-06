@@ -13,4 +13,10 @@ export interface UpdateUserBody {
   role?: string | null;
   /** @nullable */
   isActive?: boolean | null;
+  /** @nullable */
+  isSuspended?: boolean | null;
+  /** @nullable */
+  password?: string | null;
+  /** @nullable */
+  photoUrl?: string | null;
 }

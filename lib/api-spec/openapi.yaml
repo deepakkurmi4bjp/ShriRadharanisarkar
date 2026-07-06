@@ -458,6 +458,10 @@ components:
           type: string
         isActive:
           type: boolean
+        isSuspended:
+          type: boolean
+        photoUrl:
+          type: ["string", "null"]
         createdAt:
           type: string
       required:
@@ -478,6 +482,10 @@ components:
         role:
           type: string
           enum: [super_admin, admin, collector, public]
+        password:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
       required:
         - name
         - mobile
@@ -492,6 +500,12 @@ components:
           type: ["string", "null"]
         isActive:
           type: ["boolean", "null"]
+        isSuspended:
+          type: ["boolean", "null"]
+        password:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
 
     Donation:
       type: object

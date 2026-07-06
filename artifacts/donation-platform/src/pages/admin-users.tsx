@@ -54,7 +54,7 @@ export default function AdminUsers() {
         queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
       },
       onError: (err) => {
-        toast({ variant: "destructive", title: "Error", description: err.error || "Failed to create user" });
+        toast({ variant: "destructive", title: "Error", description: err.data?.error || "Failed to create user" });
       }
     });
   };
@@ -66,7 +66,7 @@ export default function AdminUsers() {
         queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
       },
       onError: (err) => {
-        toast({ variant: "destructive", title: "Error", description: err.error });
+        toast({ variant: "destructive", title: "Error", description: err.data?.error });
       }
     });
   };
