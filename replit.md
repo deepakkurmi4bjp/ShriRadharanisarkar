@@ -69,11 +69,13 @@ Express 5 REST API with:
 
 ## Login (Demo Credentials)
 
-Use any mobile number. Role is selected on login screen. Pre-seeded users:
-- 9876543210 (super_admin - Ramesh Sharma)
-- 9876543211 (admin - Suresh Patel)
-- 9876543212 (collector - Collector Mohan)
-- 9876543213 (collector - Collector Priya)
-- 9876543214 (collector - Collector Ravi)
+Password for all accounts: **Aditya@123**
+
+| Mobile | Role | Name |
+|--------|------|------|
+| 9876543210 | super_admin | Ramesh Sharma |
+| 7440771076 | super_admin | Deepak Patel |
+| 9425478323 | collector | Deepak Patel |
+| 7440771077 | admin | Deepak Patel |
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

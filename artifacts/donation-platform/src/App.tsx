@@ -24,7 +24,11 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ component: Component, allowedRoles, ...rest }: any) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Redirect to="/login" />;

@@ -100,7 +100,7 @@ export default function CollectorPanel() {
           toast({
             variant: "destructive",
             title: "दान दर्ज करने में विफल",
-            description: error?.error || "अप्रत्याशित त्रुटि हुई",
+            description: error?.data?.error || error?.message || "अप्रत्याशित त्रुटि हुई",
           });
         }
       }
