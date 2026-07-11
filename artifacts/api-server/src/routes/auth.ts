@@ -5,8 +5,13 @@ import bcrypt from "bcryptjs";
 import { createToken, verifyToken } from "../lib/token";
 import { createAuditLog } from "../lib/audit";
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from "../lib/rate-limiter";
+import { createOtp, verifyOtp } from "../lib/otp";
+import { sendOtpEmail } from "../lib/mailer";
 
 const router: IRouter = Router();
+
+// Roles that require OTP (all except public)
+const OTP_REQUIRED_ROLES = new Set(["super_admin", "admin", "collector"]);
 
 function getClientKey(req: any): string {
   const ip = req.ip || req.connection?.remoteAddress || "unknown";
@@ -25,6 +30,7 @@ async function verifyPassword(plain: string, stored: string): Promise<boolean> {
   return plain === stored;
 }
 
+// Step 1: Verify mobile + password → send OTP to email (for protected roles)
 router.post("/auth/login", async (req, res): Promise<void> => {
   const { mobile, password } = req.body || {};
 
@@ -119,20 +125,115 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  clearAttempts(clientKey);
-
   // Migrate plain-text password to bcrypt hash on first successful login
   if (!user.password.startsWith("$2b$") && !user.password.startsWith("$2a$")) {
     const hashed = await bcrypt.hash(password, 12);
     await db.update(usersTable).set({ password: hashed }).where(eq(usersTable.id, user.id));
   }
 
+  // If role requires OTP, send it to email
+  if (OTP_REQUIRED_ROLES.has(user.role)) {
+    if (!user.email) {
+      res.status(400).json({
+        error: "आपके account में email पता दर्ज नहीं है। Super Admin से email जोड़ने के लिए संपर्क करें।",
+      });
+      return;
+    }
+
+    const otp = await createOtp(user.id);
+    try {
+      await sendOtpEmail(user.email, otp, user.name);
+    } catch (err: any) {
+      res.status(500).json({ error: "OTP email भेजने में विफल। कृपया दोबारा प्रयास करें।" });
+      return;
+    }
+
+    await createAuditLog({
+      userId: user.id,
+      action: "OTP_SENT",
+      details: `OTP sent to ${user.email} for ${user.name} (${user.role})`,
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      otpRequired: true,
+      userId: user.id,
+      maskedEmail: maskEmail(user.email),
+    });
+    return;
+  }
+
+  // Public role — no OTP needed, login directly
+  clearAttempts(clientKey);
   const token = createToken(user.id, user.role);
 
   await createAuditLog({
     userId: user.id,
     action: "LOGIN",
     details: `${user.name} (${user.role}) successfully logged in`,
+    ipAddress: req.ip,
+  });
+
+  res.json({
+    otpRequired: false,
+    user: {
+      id: user.id,
+      name: user.name,
+      mobile: user.mobile,
+      role: user.role,
+      isActive: user.isActive,
+      isSuspended: user.isSuspended,
+      createdAt: user.createdAt.toISOString(),
+    },
+    token,
+  });
+});
+
+// Step 2: Verify OTP → issue JWT
+router.post("/auth/verify-otp", async (req, res): Promise<void> => {
+  const { userId, otp } = req.body || {};
+
+  if (!userId || typeof userId !== "number") {
+    res.status(400).json({ error: "userId आवश्यक है।" });
+    return;
+  }
+  if (!otp || typeof otp !== "string" || otp.length !== 6) {
+    res.status(400).json({ error: "OTP 6 अंकों का होना चाहिए।" });
+    return;
+  }
+
+  const user = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .then((r) => r[0]);
+
+  if (!user) {
+    res.status(401).json({ error: "User नहीं मिला।" });
+    return;
+  }
+
+  const valid = await verifyOtp(userId, otp);
+  if (!valid) {
+    await createAuditLog({
+      userId,
+      action: "OTP_FAILED",
+      details: `Wrong or expired OTP for ${user.name} (${user.mobile})`,
+      ipAddress: req.ip,
+    });
+    res.status(401).json({ error: "गलत या समय-सीमा समाप्त OTP। कृपया दोबारा login करें।" });
+    return;
+  }
+
+  const clientKey = `${req.ip || "unknown"}:${user.mobile}`;
+  clearAttempts(clientKey);
+
+  const token = createToken(user.id, user.role);
+
+  await createAuditLog({
+    userId: user.id,
+    action: "LOGIN",
+    details: `${user.name} (${user.role}) successfully logged in with OTP`,
     ipAddress: req.ip,
   });
 
@@ -188,5 +289,12 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     createdAt: user.createdAt.toISOString(),
   });
 });
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  const visible = local.slice(0, 3);
+  return `${visible}***@${domain}`;
+}
 
 export default router;
