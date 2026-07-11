@@ -13,5 +13,11 @@ export interface CreateUserBody {
   role: CreateUserBodyRole;
   password?: string;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   photoUrl?: string | null;
+  /** @nullable */
+  aadharNumber?: string | null;
+  /** @nullable */
+  fatherHusbandName?: string | null;
 }

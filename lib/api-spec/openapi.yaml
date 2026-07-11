@@ -454,6 +454,8 @@ components:
           type: string
         mobile:
           type: string
+        email:
+          type: ["string", "null"]
         role:
           type: string
         isActive:
@@ -461,6 +463,10 @@ components:
         isSuspended:
           type: boolean
         photoUrl:
+          type: ["string", "null"]
+        aadharNumber:
+          type: ["string", "null"]
+        fatherHusbandName:
           type: ["string", "null"]
         createdAt:
           type: string
@@ -484,7 +490,13 @@ components:
           enum: [super_admin, admin, collector, public]
         password:
           type: string
+        email:
+          type: ["string", "null"]
         photoUrl:
+          type: ["string", "null"]
+        aadharNumber:
+          type: ["string", "null"]
+        fatherHusbandName:
           type: ["string", "null"]
       required:
         - name
@@ -504,7 +516,13 @@ components:
           type: ["boolean", "null"]
         password:
           type: ["string", "null"]
+        email:
+          type: ["string", "null"]
         photoUrl:
+          type: ["string", "null"]
+        aadharNumber:
+          type: ["string", "null"]
+        fatherHusbandName:
           type: ["string", "null"]
 
     Donation:

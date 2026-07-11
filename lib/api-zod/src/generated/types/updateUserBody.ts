@@ -18,5 +18,11 @@ export interface UpdateUserBody {
   /** @nullable */
   password?: string | null;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   photoUrl?: string | null;
+  /** @nullable */
+  aadharNumber?: string | null;
+  /** @nullable */
+  fatherHusbandName?: string | null;
 }

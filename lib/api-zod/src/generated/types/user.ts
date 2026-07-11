@@ -10,10 +10,16 @@ export interface User {
   id: number;
   name: string;
   mobile: string;
+  /** @nullable */
+  email?: string | null;
   role: string;
   isActive: boolean;
   isSuspended?: boolean;
   /** @nullable */
   photoUrl?: string | null;
+  /** @nullable */
+  aadharNumber?: string | null;
+  /** @nullable */
+  fatherHusbandName?: string | null;
   createdAt: string;
 }

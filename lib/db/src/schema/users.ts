@@ -12,6 +12,8 @@ export const usersTable = pgTable("users", {
   isActive: boolean("is_active").notNull().default(true),
   isSuspended: boolean("is_suspended").notNull().default(false),
   photoUrl: text("photo_url"),
+  aadharNumber: text("aadhar_number"),
+  fatherHusbandName: text("father_husband_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

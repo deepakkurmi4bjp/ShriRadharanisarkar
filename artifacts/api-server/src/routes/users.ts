@@ -8,20 +8,25 @@ import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
+function serializeUser(u: typeof usersTable.$inferSelect) {
+  return {
+    id: u.id,
+    name: u.name,
+    mobile: u.mobile,
+    email: u.email ?? null,
+    role: u.role,
+    isActive: u.isActive,
+    isSuspended: u.isSuspended,
+    photoUrl: u.photoUrl ?? null,
+    aadharNumber: u.aadharNumber ?? null,
+    fatherHusbandName: u.fatherHusbandName ?? null,
+    createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
+  };
+}
+
 router.get("/users", requireAuth("admin"), async (_req, res): Promise<void> => {
   const users = await db.select().from(usersTable).orderBy(usersTable.createdAt);
-  res.json(
-    users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      mobile: u.mobile,
-      role: u.role,
-      isActive: u.isActive,
-      isSuspended: u.isSuspended,
-      photoUrl: u.photoUrl ?? null,
-      createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
-    }))
-  );
+  res.json(users.map(serializeUser));
 });
 
 router.post("/users", requireAuth("super_admin"), async (req, res): Promise<void> => {
@@ -51,7 +56,10 @@ router.post("/users", requireAuth("super_admin"), async (req, res): Promise<void
       mobile: parsed.data.mobile,
       role: parsed.data.role,
       password: hashedPassword,
+      email: (parsed.data as any).email ?? null,
       photoUrl: (parsed.data as any).photoUrl ?? null,
+      aadharNumber: (parsed.data as any).aadharNumber ?? null,
+      fatherHusbandName: (parsed.data as any).fatherHusbandName ?? null,
     })
     .returning();
 
@@ -62,16 +70,7 @@ router.post("/users", requireAuth("super_admin"), async (req, res): Promise<void
     ipAddress: req.ip,
   });
 
-  res.status(201).json({
-    id: user.id,
-    name: user.name,
-    mobile: user.mobile,
-    role: user.role,
-    isActive: user.isActive,
-    isSuspended: user.isSuspended,
-    photoUrl: user.photoUrl ?? null,
-    createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
-  });
+  res.status(201).json(serializeUser(user));
 });
 
 router.patch("/users/:id", requireAuth("admin"), async (req, res): Promise<void> => {
@@ -95,7 +94,10 @@ router.patch("/users/:id", requireAuth("admin"), async (req, res): Promise<void>
   if (parsed.data.password != null) {
     updateData.password = await bcrypt.hash(parsed.data.password, 12);
   }
+  if ((parsed.data as any).email !== undefined) updateData.email = (parsed.data as any).email;
   if ((parsed.data as any).photoUrl !== undefined) updateData.photoUrl = (parsed.data as any).photoUrl;
+  if ((parsed.data as any).aadharNumber !== undefined) updateData.aadharNumber = (parsed.data as any).aadharNumber;
+  if ((parsed.data as any).fatherHusbandName !== undefined) updateData.fatherHusbandName = (parsed.data as any).fatherHusbandName;
 
   const [user] = await db
     .update(usersTable)
@@ -124,16 +126,7 @@ router.patch("/users/:id", requireAuth("admin"), async (req, res): Promise<void>
     ipAddress: req.ip,
   });
 
-  res.json({
-    id: user.id,
-    name: user.name,
-    mobile: user.mobile,
-    role: user.role,
-    isActive: user.isActive,
-    isSuspended: user.isSuspended,
-    photoUrl: user.photoUrl ?? null,
-    createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
-  });
+  res.json(serializeUser(user));
 });
 
 router.delete("/users/:id", requireAuth("super_admin"), async (req, res): Promise<void> => {

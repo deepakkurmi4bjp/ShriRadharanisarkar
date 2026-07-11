@@ -36,11 +36,17 @@ export interface User {
   id: number;
   name: string;
   mobile: string;
+  /** @nullable */
+  email?: string | null;
   role: string;
   isActive: boolean;
   isSuspended?: boolean;
   /** @nullable */
   photoUrl?: string | null;
+  /** @nullable */
+  aadharNumber?: string | null;
+  /** @nullable */
+  fatherHusbandName?: string | null;
   createdAt: string;
 }
 
@@ -65,7 +71,13 @@ export interface CreateUserBody {
   role: CreateUserBodyRole;
   password?: string;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   photoUrl?: string | null;
+  /** @nullable */
+  aadharNumber?: string | null;
+  /** @nullable */
+  fatherHusbandName?: string | null;
 }
 
 export interface UpdateUserBody {
@@ -80,7 +92,13 @@ export interface UpdateUserBody {
   /** @nullable */
   password?: string | null;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   photoUrl?: string | null;
+  /** @nullable */
+  aadharNumber?: string | null;
+  /** @nullable */
+  fatherHusbandName?: string | null;
 }
 
 export interface Donation {

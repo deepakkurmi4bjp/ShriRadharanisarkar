@@ -28,10 +28,13 @@ export const LoginResponse = zod.object({
     id: zod.number(),
     name: zod.string(),
     mobile: zod.string(),
+    email: zod.string().nullish(),
     role: zod.string(),
     isActive: zod.boolean(),
     isSuspended: zod.boolean().optional(),
     photoUrl: zod.string().nullish(),
+    aadharNumber: zod.string().nullish(),
+    fatherHusbandName: zod.string().nullish(),
     createdAt: zod.string(),
   }),
   token: zod.string(),
@@ -51,10 +54,13 @@ export const GetMeResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   mobile: zod.string(),
+  email: zod.string().nullish(),
   role: zod.string(),
   isActive: zod.boolean(),
   isSuspended: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
+  aadharNumber: zod.string().nullish(),
+  fatherHusbandName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -163,10 +169,13 @@ export const ListUsersResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   mobile: zod.string(),
+  email: zod.string().nullish(),
   role: zod.string(),
   isActive: zod.boolean(),
   isSuspended: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
+  aadharNumber: zod.string().nullish(),
+  fatherHusbandName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
@@ -179,7 +188,10 @@ export const CreateUserBody = zod.object({
   mobile: zod.string(),
   role: zod.enum(["super_admin", "admin", "collector", "public"]),
   password: zod.string().optional(),
+  email: zod.string().nullish(),
   photoUrl: zod.string().nullish(),
+  aadharNumber: zod.string().nullish(),
+  fatherHusbandName: zod.string().nullish(),
 });
 
 /**
@@ -195,17 +207,23 @@ export const UpdateUserBody = zod.object({
   isActive: zod.boolean().nullish(),
   isSuspended: zod.boolean().nullish(),
   password: zod.string().nullish(),
+  email: zod.string().nullish(),
   photoUrl: zod.string().nullish(),
+  aadharNumber: zod.string().nullish(),
+  fatherHusbandName: zod.string().nullish(),
 });
 
 export const UpdateUserResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   mobile: zod.string(),
+  email: zod.string().nullish(),
   role: zod.string(),
   isActive: zod.boolean(),
   isSuspended: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
+  aadharNumber: zod.string().nullish(),
+  fatherHusbandName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
