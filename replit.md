@@ -71,11 +71,16 @@ Express 5 REST API with:
 
 Password for all accounts: **Aditya@123**
 
-| Mobile | Role | Name |
-|--------|------|------|
-| 9876543210 | super_admin | Ramesh Sharma |
-| 7440771076 | super_admin | Deepak Patel |
-| 9425478323 | collector | Deepak Patel |
-| 7440771077 | admin | Deepak Patel |
+Login is 2-step for protected roles (super_admin, admin, collector):
+1. Mobile + Password → OTP sent to registered Gmail
+2. Enter 6-digit OTP from Gmail → Access granted
+
+| Mobile | Role | Name | OTP Email |
+|--------|------|------|-----------|
+| 7440771076 | super_admin | Deepak Patel | deepak53802@gmail.com |
+| 7440771077 | admin | Deepak Patel | bjp4taradehi@gmail.com |
+| 9425478323 | collector | Deepak Patel | sdf.Deepakpatel@gmail.com |
+
+Note: Old super_admin mobile 9876543210 (Ramesh Sharma) has been deactivated.
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

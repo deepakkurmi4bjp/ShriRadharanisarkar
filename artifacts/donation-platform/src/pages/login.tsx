@@ -9,15 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldCheck, Eye, EyeOff, Phone, Lock, AlertTriangle } from "lucide-react";
-import { motion } from "framer-motion";
+import { Loader2, Eye, EyeOff, Phone, Lock, AlertTriangle, Mail, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const loginSchema = z.object({
   mobile: z.string().min(10, "मोबाइल नंबर 10 अंक का होना चाहिए").max(15),
   password: z.string().min(1, "पासवर्ड आवश्यक है"),
 });
 
+const otpSchema = z.object({
+  otp: z.string().length(6, "OTP 6 अंकों का होना चाहिए"),
+});
+
 type LoginFormValues = z.infer<typeof loginSchema>;
+type OtpFormValues = z.infer<typeof otpSchema>;
 
 const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -29,12 +34,22 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [failedMsg, setFailedMsg] = useState<string | null>(null);
 
-  const form = useForm<LoginFormValues>({
+  // OTP step state
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpUserId, setOtpUserId] = useState<number | null>(null);
+  const [maskedEmail, setMaskedEmail] = useState<string>("");
+
+  const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { mobile: "", password: "" },
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const otpForm = useForm<OtpFormValues>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { otp: "" },
+  });
+
+  const onLoginSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     setFailedMsg(null);
     try {
@@ -48,6 +63,42 @@ export default function Login() {
 
       if (!resp.ok) {
         setFailedMsg(json.error || "Login असफल रहा। कृपया दोबारा प्रयास करें।");
+        return;
+      }
+
+      if (json.otpRequired) {
+        // Show OTP step
+        setOtpUserId(json.userId);
+        setMaskedEmail(json.maskedEmail);
+        setOtpStep(true);
+        toast({ title: "OTP भेजा गया", description: `${json.maskedEmail} पर OTP भेजा गया है।` });
+      } else {
+        // Public role — direct login
+        setAuthData(json.user, json.token);
+        toast({ title: `✅ स्वागत है, ${json.user.name}!`, description: `Role: ${json.user.role}` });
+        setLocation("/");
+      }
+    } catch {
+      setFailedMsg("Server से connection नहीं हो पाया। कृपया दोबारा प्रयास करें।");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onOtpSubmit = async (data: OtpFormValues) => {
+    setIsLoading(true);
+    setFailedMsg(null);
+    try {
+      const resp = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: otpUserId, otp: data.otp }),
+      });
+
+      const json = await resp.json();
+
+      if (!resp.ok) {
+        setFailedMsg(json.error || "OTP गलत है। कृपया दोबारा प्रयास करें।");
         return;
       }
 
@@ -68,6 +119,14 @@ export default function Login() {
     }
   };
 
+  const handleBackToLogin = () => {
+    setOtpStep(false);
+    setOtpUserId(null);
+    setMaskedEmail("");
+    setFailedMsg(null);
+    otpForm.reset();
+  };
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 p-4">
       <motion.div
@@ -86,7 +145,7 @@ export default function Login() {
                 श्री मां नर्मदा भक्त परिवार
               </CardTitle>
               <CardDescription className="text-sm mt-1">
-                दान प्रबंधन प्रणाली — सुरक्षित प्रवेश
+                {otpStep ? "OTP सत्यापन — सुरक्षित प्रवेश" : "दान प्रबंधन प्रणाली — सुरक्षित प्रवेश"}
               </CardDescription>
             </div>
           </CardHeader>
@@ -103,76 +162,156 @@ export default function Login() {
               </motion.div>
             )}
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="mobile"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Phone size={14} /> मोबाइल नंबर
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="10 अंक का मोबाइल नंबर"
-                          type="tel"
-                          inputMode="numeric"
-                          className="h-11 text-base"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Lock size={14} /> पासवर्ड
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            placeholder="पासवर्ड डालें"
-                            type={showPassword ? "text" : "password"}
-                            className="h-11 text-base pr-10"
-                            {...field}
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  className="w-full h-11 text-base font-semibold mt-2"
-                  disabled={isLoading}
+            <AnimatePresence mode="wait">
+              {!otpStep ? (
+                <motion.div
+                  key="login"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      जाँच हो रही है...
-                    </>
-                  ) : (
-                    "🔐 Login करें"
-                  )}
-                </Button>
-              </form>
-            </Form>
+                  <Form {...loginForm}>
+                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                      <FormField
+                        control={loginForm.control}
+                        name="mobile"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
+                              <Phone size={14} /> मोबाइल नंबर
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="10 अंक का मोबाइल नंबर"
+                                type="tel"
+                                inputMode="numeric"
+                                className="h-11 text-base"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={loginForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
+                              <Lock size={14} /> पासवर्ड
+                            </FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  placeholder="पासवर्ड डालें"
+                                  type={showPassword ? "text" : "password"}
+                                  className="h-11 text-base pr-10"
+                                  {...field}
+                                />
+                                <button
+                                  type="button"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                >
+                                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button
+                        type="submit"
+                        className="w-full h-11 text-base font-semibold mt-2"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            जाँच हो रही है...
+                          </>
+                        ) : (
+                          "🔐 आगे बढ़ें"
+                        )}
+                      </Button>
+                    </form>
+                  </Form>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="otp"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+                    <Mail size={20} className="text-amber-600 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-amber-800">OTP भेजा गया</p>
+                      <p className="text-amber-700">{maskedEmail} पर 6 अंकों का OTP भेजा गया है।</p>
+                    </div>
+                  </div>
+
+                  <Form {...otpForm}>
+                    <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-4">
+                      <FormField
+                        control={otpForm.control}
+                        name="otp"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
+                              <ShieldCheck size={14} /> OTP दर्ज करें
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="6 अंकों का OTP"
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={6}
+                                className="h-14 text-2xl text-center font-bold tracking-[0.5em]"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button
+                        type="submit"
+                        className="w-full h-11 text-base font-semibold"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            सत्यापन हो रहा है...
+                          </>
+                        ) : (
+                          "✅ OTP सत्यापित करें और Login करें"
+                        )}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full text-sm text-muted-foreground"
+                        onClick={handleBackToLogin}
+                        disabled={isLoading}
+                      >
+                        ← वापस जाएं
+                      </Button>
+                    </form>
+                  </Form>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardContent>
 
           <CardFooter className="flex-col gap-2 border-t py-4 bg-muted/20">
