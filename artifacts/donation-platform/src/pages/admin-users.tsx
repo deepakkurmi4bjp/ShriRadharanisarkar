@@ -63,8 +63,8 @@ export default function AdminUsers() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "फोटो बड़ा है", description: "फोटो 2MB से कम होना चाहिए।" });
+    if (file.size > 100 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "फोटो बड़ा है", description: "फोटो 100MB से कम होना चाहिए।" });
       return;
     }
     const reader = new FileReader();
@@ -171,7 +171,7 @@ export default function AdminUsers() {
                     className="hidden"
                     onChange={handlePhotoChange}
                   />
-                  <p className="text-xs text-muted-foreground">फोटो upload करें (max 2MB)</p>
+                  <p className="text-xs text-muted-foreground">फोटो upload करें (max 100MB)</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
