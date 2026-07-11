@@ -349,10 +349,17 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
-  // Attach bearer token when an auth getter is configured and no
-  // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
-    const token = await _authTokenGetter();
+  // Attach bearer token when no Authorization header has been explicitly provided.
+  // First tries the registered getter; falls back to localStorage("auth_token")
+  // so requests still work after Vite HMR resets module-level state.
+  if (!headers.has("authorization")) {
+    let token: string | null = null;
+    if (_authTokenGetter) {
+      token = await _authTokenGetter();
+    }
+    if (!token && typeof localStorage !== "undefined") {
+      token = localStorage.getItem("auth_token");
+    }
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
