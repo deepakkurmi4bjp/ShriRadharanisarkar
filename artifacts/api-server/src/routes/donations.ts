@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, donationsTable, usersTable } from "@workspace/db";
 import { eq, desc, sql, ilike, or } from "drizzle-orm";
+import crypto from "crypto";
 import {
   CreateDonationBody,
   GetDonationParams,
@@ -62,9 +63,19 @@ router.get("/donations", async (req, res): Promise<void> => {
       .offset(offset) as any;
   }
 
-  const totalResult = await db
+  const totalQuery = db
     .select({ count: sql<number>`count(*)::int` })
     .from(donationsTable);
+  const totalResult = search
+    ? await totalQuery.where(
+        or(
+          ilike(donationsTable.name, `%${search}%`),
+          ilike(donationsTable.mobile, `%${search}%`),
+        ),
+      )
+    : collector_id != null
+      ? await totalQuery.where(eq(donationsTable.collectorId, collector_id))
+      : await totalQuery;
 
   const total = totalResult[0]?.count ?? 0;
 
@@ -73,13 +84,17 @@ router.get("/donations", async (req, res): Promise<void> => {
       id: d.id,
       donationId: d.donationId,
       name: d.name,
-      mobile: d.mobile,
+       mobile: `******${d.mobile.slice(-4)}`,
       amount: parseFloat(d.amount),
       purpose: d.purpose ?? null,
       collectorId: d.collectorId ?? null,
       collectorName: d.collectorName ?? null,
       hash: d.hash,
-      isVerified: true,
+       isVerified: verifyDonationHash(
+         d.donationId,
+         String(parseFloat(d.amount)),
+         d.hash,
+       ),
       createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : d.createdAt,
     })),
     total,
@@ -96,8 +111,9 @@ router.post("/donations", requireAuth("collector"), async (req, res): Promise<vo
     return;
   }
 
-  const { name, mobile, amount, purpose, collectorId } = parsed.data;
-  const donationId = `DON${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const { name, mobile, amount, purpose } = parsed.data;
+  const collectorId = req.authUser!.id;
+  const donationId = `DON${Date.now()}${crypto.randomInt(100, 1000)}`;
   const amountStr = String(parseFloat(String(amount)));
   const hash = generateDonationHash(donationId, amountStr);
 
@@ -114,12 +130,14 @@ router.post("/donations", requireAuth("collector"), async (req, res): Promise<vo
     })
     .returning();
 
-  const collector = collectorId
-    ? await db.select().from(usersTable).where(eq(usersTable.id, collectorId)).then((r) => r[0])
-    : null;
+  const collector = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, collectorId))
+    .then((r) => r[0]);
 
   await createAuditLog({
-    userId: collectorId ?? null,
+    userId: collectorId,
     action: "DONATION_CREATED",
     details: `Donation ${donationId} of ₹${amount} by ${name} (collector: ${collector?.name ?? "unknown"})`,
     ipAddress: req.ip,
@@ -175,13 +193,17 @@ router.get("/donations/:id", async (req, res): Promise<void> => {
     id: d.id,
     donationId: d.donationId,
     name: d.name,
-    mobile: d.mobile,
+       mobile: `******${d.mobile.slice(-4)}`,
     amount: parseFloat(d.amount),
     purpose: d.purpose ?? null,
     collectorId: d.collectorId ?? null,
     collectorName: (d as any).collectorName ?? null,
     hash: d.hash,
-    isVerified: true,
+    isVerified: verifyDonationHash(
+      d.donationId,
+      String(parseFloat(d.amount)),
+      d.hash,
+    ),
     createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : d.createdAt,
   });
 });
@@ -254,7 +276,7 @@ router.get("/donations/:id/verify", async (req, res): Promise<void> => {
       id: d.id,
       donationId: d.donationId,
       name: d.name,
-      mobile: d.mobile,
+       mobile: `******${d.mobile.slice(-4)}`,
       amount: parseFloat(d.amount),
       purpose: d.purpose ?? null,
       collectorId: d.collectorId ?? null,

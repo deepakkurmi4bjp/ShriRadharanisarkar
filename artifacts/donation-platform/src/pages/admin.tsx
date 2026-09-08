@@ -8,12 +8,11 @@ import { Link } from "wouter";
 import { ArrowRight, Users, TrendingUp, IndianRupee, ShieldAlert, Sparkles, TrendingDown, AlertTriangle, CheckCircle2, Info, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { apiUrl } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 
 const COLORS = ['hsl(28, 85%, 45%)', 'hsl(40, 85%, 45%)', 'hsl(15, 85%, 45%)', 'hsl(5, 85%, 45%)', 'hsl(45, 85%, 45%)'];
-
-const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 type AiInsight = {
   title: string;
@@ -50,7 +49,7 @@ function AiInsightsPanel() {
     setError(null);
     try {
       const token = localStorage.getItem("auth_token");
-      const resp = await fetch(`${API_BASE}/api/ai/insights`, {
+      const resp = await fetch(apiUrl("/ai/insights"), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!resp.ok) {

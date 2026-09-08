@@ -369,6 +369,10 @@ export async function customFetch<T = unknown>(
 
   const response = await fetch(input, { ...init, method, headers });
 
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth:unauthorized"));
+  }
+
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);

@@ -151,13 +151,15 @@ router.delete("/users/:id", requireAuth("super_admin"), async (req, res): Promis
     return;
   }
 
-  await db.execute(
-    sql`UPDATE donations SET collector_id = NULL WHERE collector_id = ${params.data.id}`
-  );
-  await db.execute(
-    sql`UPDATE audit_logs SET user_id = NULL WHERE user_id = ${params.data.id}`
-  );
-  await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`UPDATE donations SET collector_id = NULL WHERE collector_id = ${params.data.id}`,
+    );
+    await tx.execute(
+      sql`UPDATE audit_logs SET user_id = NULL WHERE user_id = ${params.data.id}`,
+    );
+    await tx.delete(usersTable).where(eq(usersTable.id, params.data.id));
+  });
 
   await createAuditLog({
     userId: req.authUser?.id,

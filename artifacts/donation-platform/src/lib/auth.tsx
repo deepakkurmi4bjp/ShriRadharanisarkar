@@ -1,12 +1,12 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { useLocation } from "wouter";
-import { User, LoginBodyRole } from "@workspace/api-client-react";
+import { apiUrl } from "./api";
 
 type AuthUser = {
   id: number;
   name: string;
   mobile: string;
-  role: LoginBodyRole | string;
+  role: string;
 };
 
 interface AuthState {
@@ -27,19 +27,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    let cancelled = false;
+
+    const clearStoredAuth = () => {
+      localStorage.removeItem("auth_user");
+      localStorage.removeItem("auth_token");
+      if (!cancelled) {
+        setUser(null);
+        setToken(null);
+      }
+    };
+
     try {
       const storedUser = localStorage.getItem("auth_user");
       const storedToken = localStorage.getItem("auth_token");
-      if (storedUser && storedToken) {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
+      if (!storedUser || !storedToken) {
+        setIsLoading(false);
+        return () => {
+          cancelled = true;
+        };
       }
+
+      const parsedUser = JSON.parse(storedUser) as Partial<AuthUser>;
+      if (
+        typeof parsedUser.id !== "number" ||
+        typeof parsedUser.name !== "string" ||
+        typeof parsedUser.mobile !== "string" ||
+        typeof parsedUser.role !== "string"
+      ) {
+        clearStoredAuth();
+        setIsLoading(false);
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      void fetch(apiUrl("/auth/me"), {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then(async (response) => {
+          if (cancelled) return;
+          if (!response.ok) {
+            clearStoredAuth();
+            return;
+          }
+          const serverUser = (await response.json()) as AuthUser;
+          setUser(serverUser);
+          setToken(storedToken);
+        })
+        .catch((error) => {
+          // Keep the local session during a temporary network outage. A 401
+          // response still clears it immediately through the auth event below.
+          console.error("Failed to validate auth session", error);
+          if (!cancelled) {
+            setUser(parsedUser as AuthUser);
+            setToken(storedToken);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
     } catch (e) {
       console.error("Failed to load auth state", e);
-    } finally {
+      clearStoredAuth();
       setIsLoading(false);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem("auth_user");
+      localStorage.removeItem("auth_token");
+      setLocation("/login");
+    };
+
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, [setLocation]);
 
   const login = (newUser: AuthUser, newToken: string) => {
     setUser(newUser);

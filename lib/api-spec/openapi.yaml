@@ -40,7 +40,7 @@ paths:
     post:
       operationId: login
       tags: [auth]
-      summary: Login with mobile and role
+      summary: Verify mobile and password, then start OTP login
       requestBody:
         required: true
         content:
@@ -56,6 +56,31 @@ paths:
                 $ref: "#/components/schemas/LoginResponse"
         "401":
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/verify-otp:
+    post:
+      operationId: verifyOtp
+      tags: [auth]
+      summary: Verify a one-time password and issue a token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpBody"
+      responses:
+        "200":
+          description: OTP verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyOtpResponse"
+        "401":
+          description: Invalid or expired OTP
           content:
             application/json:
               schema:
@@ -424,17 +449,42 @@ components:
       properties:
         mobile:
           type: string
-        role:
-          type: string
-          enum: [super_admin, admin, collector, public]
-        name:
+        password:
           type: string
       required:
         - mobile
-        - role
-        - name
+        - password
 
     LoginResponse:
+      type: object
+      properties:
+        otpRequired:
+          type: boolean
+        userId:
+          type: integer
+        maskedEmail:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required:
+        - otpRequired
+
+    VerifyOtpBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+        otp:
+          type: string
+          minLength: 6
+          maxLength: 6
+      required:
+        - userId
+        - otp
+
+    VerifyOtpResponse:
       type: object
       properties:
         user:
@@ -574,8 +624,6 @@ components:
           type: number
         purpose:
           type: ["string", "null"]
-        collectorId:
-          type: ["integer", "null"]
       required:
         - name
         - mobile

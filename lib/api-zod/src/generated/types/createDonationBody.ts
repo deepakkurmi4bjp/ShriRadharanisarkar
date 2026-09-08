@@ -12,6 +12,4 @@ export interface CreateDonationBody {
   amount: number;
   /** @nullable */
   purpose?: string | null;
-  /** @nullable */
-  collectorId?: number | null;
 }

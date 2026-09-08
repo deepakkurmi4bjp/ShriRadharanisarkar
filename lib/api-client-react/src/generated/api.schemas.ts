@@ -17,19 +17,9 @@ export interface SuccessResponse {
   success: boolean;
 }
 
-export type LoginBodyRole = (typeof LoginBodyRole)[keyof typeof LoginBodyRole];
-
-export const LoginBodyRole = {
-  super_admin: "super_admin",
-  admin: "admin",
-  collector: "collector",
-  public: "public",
-} as const;
-
 export interface LoginBody {
   mobile: string;
-  role: LoginBodyRole;
-  name: string;
+  password: string;
 }
 
 export interface User {
@@ -51,6 +41,23 @@ export interface User {
 }
 
 export interface LoginResponse {
+  otpRequired: boolean;
+  userId?: number;
+  maskedEmail?: string;
+  user?: User;
+  token?: string;
+}
+
+export interface VerifyOtpBody {
+  userId: number;
+  /**
+   * @minLength 6
+   * @maxLength 6
+   */
+  otp: string;
+}
+
+export interface VerifyOtpResponse {
   user: User;
   token: string;
 }
@@ -124,8 +131,6 @@ export interface CreateDonationBody {
   amount: number;
   /** @nullable */
   purpose?: string | null;
-  /** @nullable */
-  collectorId?: number | null;
 }
 
 export interface DonationListResponse {

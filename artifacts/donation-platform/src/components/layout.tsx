@@ -34,7 +34,7 @@ export function Layout({ children }: LayoutProps) {
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
-      onSuccess: () => {
+      onSettled: () => {
         logout();
       },
     });

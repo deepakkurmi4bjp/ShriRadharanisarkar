@@ -13,6 +13,8 @@ const allowedOrigins = [
   ...(process.env.REPLIT_DEV_DOMAIN ? [`https://${process.env.REPLIT_DEV_DOMAIN}`] : []),
   "http://localhost",
   "http://localhost:80",
+  "http://127.0.0.1",
+  "http://127.0.0.1:80",
 ];
 
 app.use(
@@ -45,7 +47,7 @@ app.use(
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin || allowedOrigins.some((o) => origin.startsWith(o))) {
+      if (!origin || allowedOrigins.includes(origin)) {
         cb(null, true);
       } else {
         cb(new Error("Not allowed by CORS"));
@@ -56,8 +58,8 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: "150mb" }));
-app.use(express.urlencoded({ extended: true, limit: "150mb" }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use("/api", router);
 

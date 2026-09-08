@@ -200,7 +200,7 @@ export default function AdminSettings() {
       {
         onSuccess: () => {
           toast({ title: "दान रिकॉर्ड हटाया गया" });
-          queryClient.invalidateQueries({ queryKey: getListDonationsQueryKey({ limit: 50 }) });
+          queryClient.invalidateQueries({ queryKey: getListDonationsQueryKey() });
         },
         onError: () => {
           toast({ variant: "destructive", title: "दान हटाने में समस्या" });

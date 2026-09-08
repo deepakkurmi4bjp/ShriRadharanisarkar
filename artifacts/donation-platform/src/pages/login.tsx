@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth";
+import { apiUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Phone, Lock, AlertTriangle, Mail, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,8 +24,6 @@ const otpSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 type OtpFormValues = z.infer<typeof otpSchema>;
-
-const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -53,7 +52,7 @@ export default function Login() {
     setIsLoading(true);
     setFailedMsg(null);
     try {
-      const resp = await fetch(`${API_BASE}/api/auth/login`, {
+      const resp = await fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile: data.mobile, password: data.password }),
@@ -89,7 +88,7 @@ export default function Login() {
     setIsLoading(true);
     setFailedMsg(null);
     try {
-      const resp = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+      const resp = await fetch(apiUrl("/auth/verify-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: otpUserId, otp: data.otp }),

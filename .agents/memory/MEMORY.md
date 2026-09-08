@@ -2,3 +2,4 @@
 - [drizzle-orm db.execute returns QueryResult](drizzle-execute-rows.md) — Raw sql`` queries via db.execute() return pg QueryResult object; must access .rows explicitly.
 - [Auth token wiring](auth-token-wiring.md) — setAuthTokenGetter must be called in main.tsx at app startup; web app uses localStorage bearer tokens, not cookies.
 - [Demo credentials](demo-credentials.md) — All seeded accounts use password Aditya@123; actual mobile numbers differ from original replit.md docs.
+- [Orval Zod barrel exports](orval-zod-barrel.md) — Current Orval output already exports named schemas from generated/api; re-exporting generated/types creates duplicate TypeScript symbols.

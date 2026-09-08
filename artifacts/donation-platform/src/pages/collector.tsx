@@ -81,7 +81,6 @@ export default function CollectorPanel() {
           mobile: data.mobile,
           amount: data.amount,
           purpose: purpose ?? undefined,
-          collectorId: user?.id 
         } 
       },
       {
@@ -107,7 +106,9 @@ export default function CollectorPanel() {
     );
   };
 
-  const verifyUrl = successData ? `${window.location.origin}/verify/${successData.id}` : "";
+  const verifyUrl = successData
+    ? `${window.location.origin}${(import.meta.env.BASE_URL || "/").replace(/\/?$/, "/")}verify/${successData.id}`
+    : "";
 
   const handleWhatsAppShare = () => {
     if (!successData) return;
@@ -115,12 +116,16 @@ export default function CollectorPanel() {
     const message = encodeURIComponent(
       `🙏 श्री मां नर्मदा भक्त परिवार को \n\nआपका दान प्राप्त हो गया है\n\nदानकर्ता: ${successData.name}\nराशि: ₹${successData.amount.toLocaleString("en-IN")}\nकारण: ${successData.purpose || "सामान्य दान"}\nरसीद ID: ${successData.donationId}\n\nरसीद सत्यापन लिंक:\n${verifyUrl}\n\nधन्यवाद 🙏`
     );
-    window.open(`https://wa.me/91${mobile}?text=${message}`, "_blank");
+    window.open(`https://wa.me/91${mobile}?text=${message}`, "_blank", "noopener,noreferrer");
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(verifyUrl);
-    toast({ title: "लिंक कॉपी हो गया" });
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(verifyUrl);
+      toast({ title: "लिंक कॉपी हो गया" });
+    } catch {
+      toast({ variant: "destructive", title: "लिंक कॉपी नहीं हो पाया" });
+    }
   };
 
   return (

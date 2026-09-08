@@ -6,7 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface LoginBody {
-  mobile: string;
-  password: string;
+export interface VerifyOtpBody {
+  userId: number;
+  /**
+   * @minLength 6
+   * @maxLength 6
+   */
+  otp: string;
 }

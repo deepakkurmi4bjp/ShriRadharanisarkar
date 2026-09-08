@@ -12,5 +12,10 @@ export function generateDonationHash(donationId: string, amount: string): string
 
 export function verifyDonationHash(donationId: string, amount: string, hash: string): boolean {
   const expected = generateDonationHash(donationId, amount);
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(hash));
+  const actual = Buffer.from(hash);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    actual.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, actual)
+  );
 }

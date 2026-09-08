@@ -8,6 +8,9 @@
 import type { User } from "./user";
 
 export interface LoginResponse {
-  user: User;
-  token: string;
+  otpRequired: boolean;
+  userId?: number;
+  maskedEmail?: string;
+  user?: User;
+  token?: string;
 }

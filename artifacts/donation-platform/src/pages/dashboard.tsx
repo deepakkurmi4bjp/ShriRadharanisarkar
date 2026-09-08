@@ -21,7 +21,7 @@ export default function Dashboard() {
   useEffect(() => {
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: getGetAnalyticsSummaryQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getListDonationsQueryKey({ limit: 10 }) });
+      queryClient.invalidateQueries({ queryKey: getListDonationsQueryKey() });
     }, 30000);
     return () => clearInterval(interval);
   }, [queryClient]);

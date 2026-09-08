@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, donationsTable, usersTable } from "@workspace/db";
-import { sql, eq, desc, gte } from "drizzle-orm";
+import { sql, eq, desc, gte, and } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
@@ -27,8 +27,15 @@ router.get("/analytics/summary", async (_req, res): Promise<void> => {
     .where(gte(donationsTable.createdAt, today));
 
   const [collectorCount] = await db
-    .select({ count: sql<number>`COUNT(DISTINCT collector_id)::int` })
-    .from(donationsTable);
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(usersTable)
+    .where(
+      and(
+        eq(usersTable.role, "collector"),
+        eq(usersTable.isActive, true),
+        eq(usersTable.isSuspended, false),
+      ),
+    );
 
   const totalDonations = totals?.totalDonations ?? 0;
   const totalAmount = totals?.totalAmount ?? 0;
@@ -73,7 +80,7 @@ router.get("/analytics/top-collectors", requireAuth("admin"), async (_req, res):
     })
     .from(donationsTable)
     .leftJoin(usersTable, eq(donationsTable.collectorId, usersTable.id))
-    .where(sql`collector_id IS NOT NULL`)
+    .where(sql`${donationsTable.collectorId} IS NOT NULL`)
     .groupBy(donationsTable.collectorId, usersTable.name)
     .orderBy(desc(sql`SUM(amount::numeric)`))
     .limit(10);
@@ -90,11 +97,11 @@ router.get("/analytics/top-collectors", requireAuth("admin"), async (_req, res):
 
 router.get("/analytics/amount-distribution", requireAuth("admin"), async (_req, res): Promise<void> => {
   const buckets = [
-    { range: "Under ₹100", min: 0, max: 99 },
-    { range: "₹100 - ₹500", min: 100, max: 500 },
-    { range: "₹501 - ₹1000", min: 501, max: 1000 },
-    { range: "₹1001 - ₹5000", min: 1001, max: 5000 },
-    { range: "Above ₹5000", min: 5001, max: 9999999 },
+    { range: "Under ₹100", min: 0, max: 100 },
+    { range: "₹100 - ₹500", min: 100, max: 501 },
+    { range: "₹501 - ₹1000", min: 501, max: 1001 },
+    { range: "₹1001 - ₹5000", min: 1001, max: 5001 },
+    { range: "Above ₹5000", min: 5001 },
   ];
 
   const result = await Promise.all(
@@ -105,7 +112,11 @@ router.get("/analytics/amount-distribution", requireAuth("admin"), async (_req, 
           amount: sql<number>`COALESCE(SUM(amount::numeric), 0)::float`,
         })
         .from(donationsTable)
-        .where(sql`amount::numeric >= ${bucket.min} AND amount::numeric <= ${bucket.max}`);
+        .where(
+          bucket.max == null
+            ? sql`amount::numeric >= ${bucket.min}`
+            : sql`amount::numeric >= ${bucket.min} AND amount::numeric < ${bucket.max}`,
+        );
 
       return { range: bucket.range, count: row?.count ?? 0, amount: row?.amount ?? 0 };
     })

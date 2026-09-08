@@ -15,15 +15,47 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * @summary Login with mobile and role
+ * @summary Verify mobile and password, then start OTP login
  */
 export const LoginBody = zod.object({
   mobile: zod.string(),
-  role: zod.enum(["super_admin", "admin", "collector", "public"]),
-  name: zod.string(),
+  password: zod.string(),
 });
 
 export const LoginResponse = zod.object({
+  otpRequired: zod.boolean(),
+  userId: zod.number().optional(),
+  maskedEmail: zod.string().optional(),
+  user: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      mobile: zod.string(),
+      email: zod.string().nullish(),
+      role: zod.string(),
+      isActive: zod.boolean(),
+      isSuspended: zod.boolean().optional(),
+      photoUrl: zod.string().nullish(),
+      aadharNumber: zod.string().nullish(),
+      fatherHusbandName: zod.string().nullish(),
+      createdAt: zod.string(),
+    })
+    .optional(),
+  token: zod.string().optional(),
+});
+
+/**
+ * @summary Verify a one-time password and issue a token
+ */
+export const verifyOtpBodyOtpMin = 6;
+export const verifyOtpBodyOtpMax = 6;
+
+export const VerifyOtpBody = zod.object({
+  userId: zod.number(),
+  otp: zod.string().min(verifyOtpBodyOtpMin).max(verifyOtpBodyOtpMax),
+});
+
+export const VerifyOtpResponse = zod.object({
   user: zod.object({
     id: zod.number(),
     name: zod.string(),
@@ -106,7 +138,6 @@ export const CreateDonationBody = zod.object({
   mobile: zod.string(),
   amount: zod.number(),
   purpose: zod.string().nullish(),
-  collectorId: zod.number().nullish(),
 });
 
 /**

@@ -6,6 +6,7 @@ const TOKEN_SECRET =
   "donation-platform-secret-key-2024";
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const revokedTokens = new Set<string>();
 
 export interface TokenPayload {
   userId: number;
@@ -41,12 +42,18 @@ export function createToken(userId: number, role: string): string {
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
+    if (revokedTokens.has(token)) return null;
     const dot = token.lastIndexOf(".");
     if (dot < 1) return null;
     const data = token.slice(0, dot);
     const sig = token.slice(dot + 1);
     const expected = sign(data);
-    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    const signature = Buffer.from(sig);
+    const expectedSignature = Buffer.from(expected);
+    if (
+      signature.length !== expectedSignature.length ||
+      !crypto.timingSafeEqual(signature, expectedSignature)
+    ) {
       return null;
     }
     const payload = JSON.parse(
@@ -57,4 +64,8 @@ export function verifyToken(token: string): TokenPayload | null {
   } catch {
     return null;
   }
+}
+
+export function revokeToken(token: string): void {
+  revokedTokens.add(token);
 }

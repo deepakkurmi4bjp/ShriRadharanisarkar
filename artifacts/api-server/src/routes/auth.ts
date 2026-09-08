@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { createToken, verifyToken } from "../lib/token";
+import { createToken, verifyToken, revokeToken } from "../lib/token";
 import { createAuditLog } from "../lib/audit";
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from "../lib/rate-limiter";
 import { createOtp, verifyOtp } from "../lib/otp";
@@ -213,6 +213,16 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
     return;
   }
 
+  if (!OTP_REQUIRED_ROLES.has(user.role)) {
+    res.status(400).json({ error: "यह account OTP login के लिए configured नहीं है।" });
+    return;
+  }
+
+  if (!user.isActive || user.isSuspended) {
+    res.status(401).json({ error: "यह account access के लिए उपलब्ध नहीं है।" });
+    return;
+  }
+
   const valid = await verifyOtp(userId, otp);
   if (!valid) {
     await createAuditLog({
@@ -251,7 +261,11 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/auth/logout", async (_req, res): Promise<void> => {
+router.post("/auth/logout", async (req, res): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    revokeToken(authHeader.slice(7));
+  }
   res.json({ success: true });
 });
 
