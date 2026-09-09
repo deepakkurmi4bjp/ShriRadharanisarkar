@@ -5,6 +5,7 @@
  * Enterprise Donation Management Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { DonationPaymentMethod } from "./donationPaymentMethod";
 
 export interface Donation {
   id: number;
@@ -14,6 +15,9 @@ export interface Donation {
   amount: number;
   /** @nullable */
   purpose: string | null;
+  paymentMethod: DonationPaymentMethod;
+  /** @nullable */
+  transactionId: string | null;
   /** @nullable */
   collectorId: number | null;
   /** @nullable */

@@ -108,6 +108,14 @@ export interface UpdateUserBody {
   fatherHusbandName?: string | null;
 }
 
+export type DonationPaymentMethod =
+  (typeof DonationPaymentMethod)[keyof typeof DonationPaymentMethod];
+
+export const DonationPaymentMethod = {
+  cash: "cash",
+  upi: "upi",
+} as const;
+
 export interface Donation {
   id: number;
   donationId: string;
@@ -116,6 +124,9 @@ export interface Donation {
   amount: number;
   /** @nullable */
   purpose: string | null;
+  paymentMethod: DonationPaymentMethod;
+  /** @nullable */
+  transactionId: string | null;
   /** @nullable */
   collectorId: number | null;
   /** @nullable */
@@ -125,12 +136,27 @@ export interface Donation {
   createdAt: string;
 }
 
+export type CreateDonationBodyPaymentMethod =
+  (typeof CreateDonationBodyPaymentMethod)[keyof typeof CreateDonationBodyPaymentMethod];
+
+export const CreateDonationBodyPaymentMethod = {
+  cash: "cash",
+  upi: "upi",
+} as const;
+
 export interface CreateDonationBody {
   name: string;
   mobile: string;
   amount: number;
   /** @nullable */
   purpose?: string | null;
+  paymentMethod?: CreateDonationBodyPaymentMethod;
+  /**
+   * @minLength 4
+   * @maxLength 100
+   * @nullable
+   */
+  transactionId?: string | null;
 }
 
 export interface DonationListResponse {

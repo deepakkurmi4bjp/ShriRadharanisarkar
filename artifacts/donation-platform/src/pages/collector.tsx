@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, IndianRupee, Receipt, MessageCircle, Share2, CheckCircle2, Copy } from "lucide-react";
+import { Loader2, IndianRupee, Receipt, MessageCircle, Share2, CheckCircle2, Copy, QrCode, Smartphone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QRCodeSVG } from "qrcode.react";
@@ -26,12 +26,17 @@ const PRESET_PURPOSES = [
   "अन्य",
 ] as const;
 
+const UPI_ID = "7440771076-3@ibl";
+const UPI_QR_URL = `${import.meta.env.BASE_URL || "/"}upi-qr.png`;
+
 const donationSchema = z.object({
   name: z.string().min(2, "नाम आवश्यक है"),
   mobile: z.string().min(10, "मोबाइल नंबर 10 अंक का होना चाहिए").max(15, "मोबाइल नंबर बहुत लंबा है"),
   amount: z.coerce.number().min(1, "राशि 0 से अधिक होनी चाहिए"),
   purposeSelect: z.string().min(1, "चंदे का कारण चुनें"),
   purposeOther: z.string().optional(),
+  paymentMethod: z.enum(["cash", "upi"]),
+  transactionId: z.string().optional(),
 });
 
 type DonationFormValues = z.infer<typeof donationSchema>;
@@ -61,6 +66,8 @@ export default function CollectorPanel() {
       amount: undefined,
       purposeSelect: "",
       purposeOther: "",
+      paymentMethod: "cash",
+      transactionId: "",
     },
   });
 
@@ -73,6 +80,12 @@ export default function CollectorPanel() {
     }
 
     const purpose = data.purposeSelect === "अन्य" ? data.purposeOther : data.purposeSelect;
+    const transactionId = data.transactionId?.trim();
+
+    if (data.paymentMethod === "upi" && !transactionId) {
+      form.setError("transactionId", { message: "UPI payment के बाद transaction ID / UTR डालें" });
+      return;
+    }
 
     createDonation.mutate(
       { 
@@ -81,6 +94,8 @@ export default function CollectorPanel() {
           mobile: data.mobile,
           amount: data.amount,
           purpose: purpose ?? undefined,
+          paymentMethod: data.paymentMethod,
+          transactionId: data.paymentMethod === "upi" ? transactionId : undefined,
         } 
       },
       {
@@ -90,7 +105,7 @@ export default function CollectorPanel() {
             description: `${response.name} से ${formatRupee(response.amount)} सफलतापूर्वक दर्ज।`,
           });
           setSuccessData({ ...response, donorMobile: data.mobile });
-          form.reset({ name: "", mobile: "", amount: undefined as any, purposeSelect: "", purposeOther: "" });
+           form.reset({ name: "", mobile: "", amount: undefined as any, purposeSelect: "", purposeOther: "", paymentMethod: "cash", transactionId: "" });
           
           queryClient.invalidateQueries({ queryKey: getGetAnalyticsSummaryQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListDonationsQueryKey({ limit: 5, collector_id: user?.id }) });
@@ -197,6 +212,78 @@ export default function CollectorPanel() {
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">भुगतान का माध्यम <span className="text-destructive">*</span></FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-12 text-base bg-muted/30" data-testid="select-payment-method">
+                              <SelectValue placeholder="भुगतान माध्यम चुनें..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="cash">नकद / Cash</SelectItem>
+                            <SelectItem value="upi">UPI / PhonePe QR</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("paymentMethod") === "upi" && (
+                    <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-4 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-lg bg-violet-100 p-2 text-violet-700">
+                          <QrCode size={20} />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-violet-950">UPI से payment लें</p>
+                          <p className="text-xs text-violet-800 mt-1">
+                            QR scan करके payment पूरा होने के बाद नीचे UTR / transaction ID दर्ज करें।
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-center gap-4 rounded-lg bg-white p-3 border border-violet-100">
+                        <img src={UPI_QR_URL} alt="PhonePe UPI payment QR code" className="h-40 w-40 rounded-lg border object-contain" />
+                        <div className="text-center sm:text-left space-y-2">
+                          <p className="text-xs text-muted-foreground">UPI ID</p>
+                          <p className="font-mono font-bold text-violet-900 break-all">{UPI_ID}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Payment सफल होने के बाद receipt बनाने के लिए transaction ID जरूरी है।
+                          </p>
+                        </div>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="transactionId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-semibold text-foreground flex items-center gap-1.5">
+                              <Smartphone size={14} /> UTR / Transaction ID <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Payment app से UTR / transaction ID"
+                                className="h-12 text-base bg-white font-mono uppercase"
+                                data-testid="input-transaction-id"
+                                {...field}
+                                onChange={(event) => field.onChange(event.target.value.toUpperCase())}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <p className="text-[11px] leading-4 text-violet-800">
+                        Note: Portal transaction ID को record और duplicate-check करता है। Bank/UPI payment verification के लिए PhonePe/बैंक statement जरूर मिलाएं।
+                      </p>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -350,6 +437,16 @@ export default function CollectorPanel() {
                   <span className="text-muted-foreground">रसीद ID</span>
                   <span className="font-mono font-bold text-foreground">{successData.donationId}</span>
                 </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-muted-foreground">भुगतान माध्यम</span>
+                  <span className="font-medium text-foreground">{successData.paymentMethod === "upi" ? "UPI" : "Cash"}</span>
+                </div>
+                {successData.transactionId && (
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-muted-foreground">Transaction ID</span>
+                    <span className="font-mono font-medium text-foreground">{successData.transactionId}</span>
+                  </div>
+                )}
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-muted-foreground">राशि</span>
                   <span className="font-bold text-primary text-xl">{formatRupee(successData.amount)}</span>

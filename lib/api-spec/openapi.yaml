@@ -590,6 +590,11 @@ components:
           type: number
         purpose:
           type: ["string", "null"]
+        paymentMethod:
+          type: string
+          enum: [cash, upi]
+        transactionId:
+          type: ["string", "null"]
         collectorId:
           type: ["integer", "null"]
         collectorName:
@@ -607,6 +612,8 @@ components:
         - mobile
         - amount
         - purpose
+        - paymentMethod
+        - transactionId
         - collectorId
         - collectorName
         - hash
@@ -624,6 +631,14 @@ components:
           type: number
         purpose:
           type: ["string", "null"]
+        paymentMethod:
+          type: string
+          enum: [cash, upi]
+          default: cash
+        transactionId:
+          type: ["string", "null"]
+          minLength: 4
+          maxLength: 100
       required:
         - name
         - mobile

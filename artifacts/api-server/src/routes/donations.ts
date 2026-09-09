@@ -15,6 +15,11 @@ import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
+function maskTransactionId(transactionId: string | null): string | null {
+  if (!transactionId) return null;
+  return `••••${transactionId.slice(-4)}`;
+}
+
 // Public — shown on dashboard
 router.get("/donations", async (req, res): Promise<void> => {
   const params = ListDonationsQueryParams.safeParse(req.query);
@@ -34,6 +39,8 @@ router.get("/donations", async (req, res): Promise<void> => {
       mobile: donationsTable.mobile,
       amount: donationsTable.amount,
       purpose: donationsTable.purpose,
+      paymentMethod: donationsTable.paymentMethod,
+      transactionId: donationsTable.transactionId,
       collectorId: donationsTable.collectorId,
       collectorName: usersTable.name,
       hash: donationsTable.hash,
@@ -87,6 +94,8 @@ router.get("/donations", async (req, res): Promise<void> => {
        mobile: `******${d.mobile.slice(-4)}`,
       amount: parseFloat(d.amount),
       purpose: d.purpose ?? null,
+       paymentMethod: d.paymentMethod,
+       transactionId: maskTransactionId(d.transactionId),
       collectorId: d.collectorId ?? null,
       collectorName: d.collectorName ?? null,
       hash: d.hash,
@@ -111,7 +120,38 @@ router.post("/donations", requireAuth("collector"), async (req, res): Promise<vo
     return;
   }
 
-  const { name, mobile, amount, purpose } = parsed.data;
+  const {
+    name,
+    mobile,
+    amount,
+    purpose,
+    paymentMethod = "cash",
+  } = parsed.data;
+  const transactionId = parsed.data.transactionId?.trim().toUpperCase() || null;
+
+  if (paymentMethod === "upi" && !transactionId) {
+    res.status(400).json({ error: "UPI payment के लिए transaction ID आवश्यक है।" });
+    return;
+  }
+
+  if (paymentMethod === "cash" && transactionId) {
+    res.status(400).json({ error: "Cash payment में transaction ID नहीं होनी चाहिए।" });
+    return;
+  }
+
+  if (transactionId) {
+    const existingTransaction = await db
+      .select({ id: donationsTable.id })
+      .from(donationsTable)
+      .where(eq(donationsTable.transactionId, transactionId))
+      .limit(1);
+
+    if (existingTransaction.length > 0) {
+      res.status(409).json({ error: "यह transaction ID पहले से दर्ज है। Duplicate entry नहीं बनाई गई।" });
+      return;
+    }
+  }
+
   const collectorId = req.authUser!.id;
   const donationId = `DON${Date.now()}${crypto.randomInt(100, 1000)}`;
   const amountStr = String(parseFloat(String(amount)));
@@ -125,10 +165,21 @@ router.post("/donations", requireAuth("collector"), async (req, res): Promise<vo
       mobile,
       amount: amountStr,
       purpose: purpose ?? null,
+      paymentMethod,
+      transactionId,
       collectorId: collectorId ?? null,
       hash,
     })
-    .returning();
+    .returning()
+    .catch((error: unknown) => {
+      if ((error as { code?: string })?.code === "23505" && transactionId) {
+        res.status(409).json({ error: "यह transaction ID पहले से दर्ज है। Duplicate entry नहीं बनाई गई।" });
+        return [];
+      }
+      throw error;
+    });
+
+  if (!donation) return;
 
   const collector = await db
     .select()
@@ -150,6 +201,8 @@ router.post("/donations", requireAuth("collector"), async (req, res): Promise<vo
     mobile: donation.mobile,
     amount: parseFloat(donation.amount),
     purpose: donation.purpose ?? null,
+    paymentMethod: donation.paymentMethod,
+    transactionId: donation.transactionId,
     collectorId: donation.collectorId ?? null,
     collectorName: collector?.name ?? null,
     hash: donation.hash,
@@ -174,6 +227,8 @@ router.get("/donations/:id", async (req, res): Promise<void> => {
       mobile: donationsTable.mobile,
       amount: donationsTable.amount,
       purpose: donationsTable.purpose,
+      paymentMethod: donationsTable.paymentMethod,
+      transactionId: donationsTable.transactionId,
       collectorId: donationsTable.collectorId,
       collectorName: usersTable.name,
       hash: donationsTable.hash,
@@ -196,6 +251,8 @@ router.get("/donations/:id", async (req, res): Promise<void> => {
        mobile: `******${d.mobile.slice(-4)}`,
     amount: parseFloat(d.amount),
     purpose: d.purpose ?? null,
+    paymentMethod: d.paymentMethod,
+    transactionId: maskTransactionId(d.transactionId),
     collectorId: d.collectorId ?? null,
     collectorName: (d as any).collectorName ?? null,
     hash: d.hash,
@@ -252,6 +309,8 @@ router.get("/donations/:id/verify", async (req, res): Promise<void> => {
       mobile: donationsTable.mobile,
       amount: donationsTable.amount,
       purpose: donationsTable.purpose,
+      paymentMethod: donationsTable.paymentMethod,
+      transactionId: donationsTable.transactionId,
       collectorId: donationsTable.collectorId,
       collectorName: usersTable.name,
       hash: donationsTable.hash,
@@ -279,6 +338,8 @@ router.get("/donations/:id/verify", async (req, res): Promise<void> => {
        mobile: `******${d.mobile.slice(-4)}`,
       amount: parseFloat(d.amount),
       purpose: d.purpose ?? null,
+      paymentMethod: d.paymentMethod,
+      transactionId: maskTransactionId(d.transactionId),
       collectorId: d.collectorId ?? null,
       collectorName: (d as any).collectorName ?? null,
       hash: d.hash,

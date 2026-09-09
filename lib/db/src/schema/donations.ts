@@ -10,6 +10,8 @@ export const donationsTable = pgTable("donations", {
   mobile: text("mobile").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   purpose: text("purpose"),
+  paymentMethod: text("payment_method").notNull().default("cash"),
+  transactionId: text("transaction_id").unique(),
   collectorId: integer("collector_id").references(() => usersTable.id),
   hash: text("hash").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

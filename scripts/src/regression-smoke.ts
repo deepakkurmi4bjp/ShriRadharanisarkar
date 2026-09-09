@@ -33,6 +33,12 @@ async function main(): Promise<void> {
   if (donations.length > 0) {
     const donation = donations[0];
     assert.match(String(donation.mobile), /^\*{6}\d{4}$/, "public donor mobile must be masked");
+    assert.ok(["cash", "upi"].includes(String(donation.paymentMethod)), "donation payment method must be valid");
+    assert.ok(
+      donation.transactionId === null ||
+        /^\u2022{4}.{4,}$/.test(String(donation.transactionId)),
+      "public transaction ID must be absent or masked",
+    );
     assert.equal(donation.isVerified, true, "stored donation hash must verify");
 
     const donationId = Number(donation.id);

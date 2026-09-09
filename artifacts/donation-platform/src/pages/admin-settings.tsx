@@ -656,6 +656,8 @@ export default function AdminSettings() {
                     <TableHead>दाता</TableHead>
                     <TableHead>मोबाइल</TableHead>
                     <TableHead>राशि</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>Transaction ID</TableHead>
                     <TableHead>उद्देश्य</TableHead>
                     <TableHead>Collector</TableHead>
                     <TableHead>दिनांक</TableHead>
@@ -666,7 +668,7 @@ export default function AdminSettings() {
                   {donationsLoading
                     ? Array(5).fill(0).map((_, i) => (
                       <TableRow key={i}>
-                        {Array(8).fill(0).map((_, j) => (
+                         {Array(10).fill(0).map((_, j) => (
                           <TableCell key={j}><Skeleton className="h-4 w-16" /></TableCell>
                         ))}
                       </TableRow>
@@ -677,6 +679,12 @@ export default function AdminSettings() {
                         <TableCell className="font-semibold">{d.name}</TableCell>
                         <TableCell className="font-mono text-sm">{d.mobile}</TableCell>
                         <TableCell className="font-bold text-primary">{formatRupee(d.amount)}</TableCell>
+                        <TableCell className="text-xs">
+                          <Badge variant="outline" className={d.paymentMethod === "upi" ? "border-violet-300 text-violet-700" : ""}>
+                            {d.paymentMethod === "upi" ? "UPI" : "Cash"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{d.transactionId || "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{d.purpose || "—"}</TableCell>
                         <TableCell className="text-xs">{d.collectorName || "—"}</TableCell>
                         <TableCell className="text-muted-foreground text-xs">{formatDate(d.createdAt)}</TableCell>

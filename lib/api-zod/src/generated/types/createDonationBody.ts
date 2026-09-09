@@ -5,6 +5,7 @@
  * Enterprise Donation Management Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateDonationBodyPaymentMethod } from "./createDonationBodyPaymentMethod";
 
 export interface CreateDonationBody {
   name: string;
@@ -12,4 +13,11 @@ export interface CreateDonationBody {
   amount: number;
   /** @nullable */
   purpose?: string | null;
+  paymentMethod?: CreateDonationBodyPaymentMethod;
+  /**
+   * @minLength 4
+   * @maxLength 100
+   * @nullable
+   */
+  transactionId?: string | null;
 }

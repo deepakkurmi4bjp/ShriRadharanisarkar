@@ -118,6 +118,8 @@ export const ListDonationsResponse = zod.object({
       mobile: zod.string(),
       amount: zod.number(),
       purpose: zod.string().nullable(),
+      paymentMethod: zod.enum(["cash", "upi"]),
+      transactionId: zod.string().nullable(),
       collectorId: zod.number().nullable(),
       collectorName: zod.string().nullable(),
       hash: zod.string(),
@@ -133,11 +135,23 @@ export const ListDonationsResponse = zod.object({
 /**
  * @summary Create a new donation
  */
+export const createDonationBodyPaymentMethodDefault = `cash`;
+export const createDonationBodyTransactionIdMin = 4;
+export const createDonationBodyTransactionIdMax = 100;
+
 export const CreateDonationBody = zod.object({
   name: zod.string(),
   mobile: zod.string(),
   amount: zod.number(),
   purpose: zod.string().nullish(),
+  paymentMethod: zod
+    .enum(["cash", "upi"])
+    .default(createDonationBodyPaymentMethodDefault),
+  transactionId: zod
+    .string()
+    .min(createDonationBodyTransactionIdMin)
+    .max(createDonationBodyTransactionIdMax)
+    .nullish(),
 });
 
 /**
@@ -154,6 +168,8 @@ export const GetDonationResponse = zod.object({
   mobile: zod.string(),
   amount: zod.number(),
   purpose: zod.string().nullable(),
+  paymentMethod: zod.enum(["cash", "upi"]),
+  transactionId: zod.string().nullable(),
   collectorId: zod.number().nullable(),
   collectorName: zod.string().nullable(),
   hash: zod.string(),
@@ -184,6 +200,8 @@ export const VerifyDonationResponse = zod.object({
     mobile: zod.string(),
     amount: zod.number(),
     purpose: zod.string().nullable(),
+    paymentMethod: zod.enum(["cash", "upi"]),
+    transactionId: zod.string().nullable(),
     collectorId: zod.number().nullable(),
     collectorName: zod.string().nullable(),
     hash: zod.string(),
