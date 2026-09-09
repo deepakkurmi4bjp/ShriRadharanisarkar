@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import { and, eq, gt } from "drizzle-orm";
+import { db, revokedTokensTable } from "@workspace/db";
 
 const TOKEN_SECRET =
   process.env.SESSION_SECRET ||
@@ -25,6 +27,10 @@ function b64url(str: string): string {
 
 function sign(data: string): string {
   return crypto.createHmac("sha256", TOKEN_SECRET).update(data).digest("hex");
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 export function createToken(userId: number, role: string): string {
@@ -66,6 +72,37 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-export function revokeToken(token: string): void {
+export async function verifyTokenWithRevocation(token: string): Promise<TokenPayload | null> {
+  const payload = verifyToken(token);
+  if (!payload) return null;
+
+  try {
+    const [revokedToken] = await db
+      .select({ id: revokedTokensTable.id })
+      .from(revokedTokensTable)
+      .where(
+        and(
+          eq(revokedTokensTable.tokenHash, hashToken(token)),
+          gt(revokedTokensTable.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
+
+    return revokedToken ? null : payload;
+  } catch {
+    // Authentication must fail closed if the revocation store is unavailable.
+    return null;
+  }
+}
+
+export async function revokeToken(token: string): Promise<void> {
   revokedTokens.add(token);
+
+  await db
+    .insert(revokedTokensTable)
+    .values({
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
+    })
+    .onConflictDoNothing({ target: revokedTokensTable.tokenHash });
 }

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { createToken, verifyToken, revokeToken } from "../lib/token";
+import { createToken, verifyTokenWithRevocation, revokeToken } from "../lib/token";
 import { createAuditLog } from "../lib/audit";
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from "../lib/rate-limiter";
 import { createOtp, verifyOtp } from "../lib/otp";
@@ -264,7 +264,12 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
 router.post("/auth/logout", async (req, res): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
-    revokeToken(authHeader.slice(7));
+    try {
+      await revokeToken(authHeader.slice(7));
+    } catch {
+      res.status(503).json({ error: "Logout temporarily unavailable. Please try again." });
+      return;
+    }
   }
   res.json({ success: true });
 });
@@ -276,7 +281,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
-  const payload = verifyToken(authHeader.slice(7));
+  const payload = await verifyTokenWithRevocation(authHeader.slice(7));
   if (!payload) {
     res.status(401).json({ error: "Invalid or expired token" });
     return;
